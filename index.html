@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#101d36">
+<title>EcE Hub</title>
+<link rel="stylesheet" href="styles.css?v=14">
+</head>
+<body>
+<div class="app-shell">
+  <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><div class="brand-mark">✦</div><div><div class="brand-name">EcE Hub</div><div class="brand-subtitle">Academic workspace</div></div></div>
+    <nav class="sidebar-scroll" id="sidebarScroll">
+      <button class="nav-item active" data-route="home"><span>⌂</span>Home</button>
+      <div class="nav-section">MAIN</div>
+      <button class="nav-item" data-route="classes"><span>▣</span>Classes</button>
+      <button class="nav-item" data-route="library"><span>▤</span>Library</button>
+      <button class="nav-item" data-route="explore"><span>◉</span>Explore</button>
+      <button class="nav-item" data-route="quizzes"><span>◈</span>Quizzes</button>
+      <button class="nav-item" data-route="tools"><span>◫</span>Study Tools</button>
+      <div class="nav-section">WORKSPACE</div>
+      <button class="nav-item" data-route="sets"><span>▣</span>My Sets</button>
+      <button class="nav-item" data-route="flashcards"><span>▧</span>Flashcards</button>
+      <button class="nav-item" data-route="notes"><span>☑</span>Notes</button>
+      <div class="nav-section">ACCOUNT</div>
+      <button class="nav-item" data-route="profile"><span>◉</span>Profile</button>
+      <button class="nav-item" data-route="settings"><span>⚙</span>Settings</button>
+    </nav>
+    <div class="guest-card"><div class="guest-icon">S</div><div><strong>Student</strong><span>Local workspace</span></div><button id="resetData">Reset Demo Data</button></div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <button class="menu-button" id="menuButton">☰</button>
+      <div class="search" id="searchWrap">
+        <span class="search-icon">⌕</span>
+        <input id="globalSearch" placeholder="Search notes, sets, quizzes, PDFs..." autocomplete="off">
+        <button type="button" class="search-clear" id="searchClear" hidden aria-label="Clear search">×</button>
+        <div class="search-results" id="searchResults" hidden></div>
+      </div>
+      <div class="top-actions">
+        <button class="icon-button" id="themeButton">☾</button>
+        <button class="icon-button" id="helpButton">?</button>
+        <div class="profile-divider"></div>
+        <div class="profile"><div><strong id="headerName">Student</strong><span>EcE Learner</span></div><div class="avatar">S<span></span></div></div>
+      </div>
+    </header>
+
+    <section class="content" id="content"></section>
+  </main>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" id="modal"></div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="app.js?v=14"></script>
+</body>
+</html>
