@@ -43,6 +43,297 @@ const seed = {
   ]
 };
 
+const searchableRoutes = [
+  'home',
+  'library',
+  'explore',
+  'sets',
+  'flashcards',
+  'quizzes',
+  'notes'
+];
+
+const BUILTIN_FLASHCARDS = [
+  {
+    id: 'builtin-methods-of-research',
+    title: 'Research Basics',
+    subject: 'Methods of Research',
+    description: 'Fundamental research concepts and terminology.',
+    cards: [
+      ['What is research?', 'A systematic investigation to establish facts or principles'],
+      ['Qualitative research', 'Research that focuses on understanding phenomena through observation and interviews'],
+      ['Quantitative research', 'Research that uses numerical data and statistical analysis'],
+      ['Experimental research', 'Research involving experiments to test hypotheses'],
+      ['Survey research', 'Research using questionnaires to collect data from a population'],
+      ['Case study', 'In-depth study of a particular instance or event'],
+      ['Research ethics', 'Guidelines for conducting research responsibly and ethically'],
+      ['Hypothesis', 'A testable statement predicting the outcome of research'],
+      ['Literature review', 'A summary and evaluation of existing research on a topic'],
+      ['Sampling', 'Process of selecting a representative group from a population for study'],
+      ['Variables', 'Elements or factors that can change or be measured in research'],
+      ['Independent variable', 'The factor that is manipulated to observe its effect'],
+      ['Dependent variable', 'The factor that is measured to see the effect of changes'],
+      ['Control group', 'Group in an experiment not exposed to the independent variable'],
+      ['Random sampling', 'Selecting participants randomly to avoid bias'],
+      ['Reliability', 'The consistency of a research measurement over time'],
+      ['Validity', 'The accuracy of a measurement in reflecting what it is supposed to measure'],
+      ['Data analysis', 'The process of organizing and interpreting collected data'],
+      ['Research design', 'The overall strategy used to integrate the different components of a study'],
+      ['Primary data', 'Data collected directly from first-hand sources'],
+      ['Secondary data', 'Data collected from existing sources or research']
+    ]
+  },
+
+  {
+    id: 'builtin-engineering-management',
+    title: 'Eng Management',
+    subject: 'Engineering Management',
+    description: 'Engineering management concepts covering planning, leadership, organizing, and controlling.',
+    cards: [
+      ['LESSON 5: What is the purpose of planning in engineering management?', 'Planning is the process of setting goals, defining strategies, and establishing action plans to achieve organizational objectives efficiently'],
+      ['What are the key types of plans in engineering management?', 'Strategic plans (long-term direction), tactical plans (intermediate goals), and operational plans (day-to-day activities)'],
+      ['What is the planning hierarchy?', 'Objectives → Strategies → Policies → Procedures → Rules; flows from highest to lowest level'],
+      ['Define forecasting in planning context', 'Predicting future conditions and trends based on historical data and market analysis to inform decisions'],
+      ['What are constraints on planning?', 'Internal constraints (resources, capabilities) and external constraints (market conditions, regulations, competition)'],
+      ['What is a project scope statement?', 'A document that clearly defines project objectives, deliverables, boundaries, and success criteria'],
+      ['Explain SMART goals in planning', 'Specific, Measurable, Achievable, Relevant, Time-bound objectives that provide clear direction'],
+      ['What is risk planning in projects?', 'Identifying potential risks early and developing mitigation strategies to minimize negative impacts'],
+      ['Define budget planning in engineering projects', 'Estimating and allocating financial resources needed for project activities and contingencies'],
+      ['What is timeline or schedule planning?', 'Determining the sequence and duration of project activities to complete deliverables on time'],
+
+      ['LESSON 6: What is leadership in engineering management?', 'Leadership is guiding, motivating, and influencing team members to achieve organizational goals effectively'],
+      ['What are the key leadership styles?', 'Autocratic (directive), Democratic (participative), Laissez-faire (delegative), and Transformational leadership'],
+      ['What is transformational leadership?', 'Leadership that inspires followers to exceed expectations and embrace organizational vision and values'],
+      ['What is motivation in leadership?', 'Process of stimulating individuals to take actions that accomplish goals and fulfill needs'],
+      ["Explain Maslow's Hierarchy of Needs", 'Five levels of human needs from basic (physiological) to highest (self-actualization) that drive motivation'],
+      ['What is emotional intelligence in leadership?', 'Ability to recognize, understand, and manage emotions in oneself and others for effective leadership'],
+      ['Define delegation in leadership', 'Assigning responsibility and authority to capable team members to accomplish specific tasks'],
+      ['What makes an effective leader in engineering?', 'Technical knowledge, clear communication, problem-solving skills, integrity, and ability to inspire teams'],
+      ['What is conflict resolution in teams?', 'Process of resolving disagreements by addressing underlying issues and finding mutually acceptable solutions'],
+      ['Explain team dynamics and cohesion', 'The interactions and relationships within a team that affect morale, productivity, and goal achievement'],
+
+      ['LESSON 7: What is organizing in management?', 'Organizing is structuring resources and activities to implement plans and achieve organizational objectives'],
+      ['What is organizational structure?', 'Framework showing hierarchical relationships, authority levels, reporting lines, and responsibility distribution'],
+      ['What are types of organizational structures?', 'Functional (by department), Divisional (by product/market), Matrix (hybrid), and Network structures'],
+      ['Define span of control in organizations', 'Number of direct reports a manager can effectively supervise; affects organizational efficiency'],
+      ['What is authority and responsibility?', 'Authority is the right to make decisions; responsibility is the obligation to perform assigned tasks'],
+      ['Define centralization vs. decentralization', 'Centralization concentrates decisions at top levels; decentralization distributes authority throughout organization'],
+      ['What is departmentalization?', 'Process of grouping related activities and people into departments for coordinated management'],
+      ['Explain the chain of command', 'Line of authority and communication flowing from top management to operational levels'],
+      ['What is job design in organization?', 'Process of specifying job content, responsibilities, methods, and relationships to achieve organizational goals'],
+      ['Define staffing in organizing function', 'Recruiting, selecting, training, and developing human resources to fill organizational positions'],
+
+      ['LESSON 8: What is controlling in management?', 'Controlling is monitoring performance against standards and taking corrective actions to ensure goal achievement'],
+      ['What are the steps in the control process?', 'Establish standards → Measure performance → Compare with standards → Take corrective action → Monitor results'],
+      ['What types of controls exist?', 'Preventive controls (before problems occur), detective controls (identify problems), and corrective controls (fix problems)'],
+      ['Define performance metrics and KPIs', 'Quantifiable measures (Key Performance Indicators) used to assess progress toward organizational objectives'],
+      ['What is variance analysis in controlling?', 'Comparison of actual performance against planned performance to identify deviations and causes'],
+      ['Explain quality control in engineering', 'Process of ensuring products or services meet defined standards and customer requirements'],
+      ['What is budget control in projects?', 'Monitoring actual expenses against budgeted amounts and implementing adjustments to prevent overruns'],
+      ['Define schedule control in project management', 'Tracking project progress against timeline and adjusting activities to maintain schedule'],
+      ['What is change control in projects?', 'Formal process for evaluating, approving, and implementing changes to project scope or requirements'],
+      ['Explain feedback loops in control systems', 'Information flow from monitoring activities back to management for informed decision-making and adjustments'],
+      ['What is benchmarking in controls?', 'Comparing organizational performance against industry standards or best-in-class practices for improvement']
+    ]
+  },
+
+  {
+    id: 'builtin-technopreneurship-module-5-6',
+    title: 'Technopreneurship Concepts',
+    subject: 'Technopreneurship Module 5 & 6',
+    description: 'Market analysis, prototyping, MVPs, competitive advantage, and startup strategy.',
+    cards: [
+      ['What is a visual representation that shows how products or brands are perceived by customers relative to each other in terms of attributes or characteristics?', 'Position Map'],
+      ['What refers to the unique qualities or strengths that enable a company to outperform its competitors in the market?', 'Competitive Advantage'],
+      ['Which strategic planning tool helps evaluate strengths, weaknesses, opportunities, and threats?', 'SWOT Analysis'],
+      ['What is competitive advantage?', 'A condition or circumstance that puts a company in a favorable or superior business position compared to its rivals.'],
+      ['What is opportunity assessment?', 'The process of identifying and evaluating potential opportunities to determine their viability and potential for success.'],
+      ['What is competitor analysis?', 'The process of identifying and evaluating the strengths and weaknesses of current and potential competitors.'],
+      ['What is market sizing?', 'The process of estimating the potential of a market in terms of total revenue or units sold, involving TAM, SAM, and SOM.'],
+      ['Define TAM in market sizing.', 'Total Addressable Market – the total possible market for your product or service, without limitations of geography, competition, or distribution.'],
+      ['Define SAM in market sizing.', 'Serviceable Addressable Market – the portion of TAM that your product or service can reach given geographical constraints, regulations, and capabilities.'],
+      ['Define SOM in market sizing.', 'Serviceable Obtainable Market – the portion of the market you can realistically capture in 2–4 years based on current product, plans, and resources.'],
+      ['What is the top-down approach in market sizing?', 'Starts with a large, general market and narrows it down to a specific segment or niche.'],
+      ['What is the bottom-up approach in market sizing?', 'Starts with a small, specific market and expands it to a larger, general market.'],
+      ['Why is combining top-down and bottom-up approaches beneficial?', 'It enhances accuracy by cross-validating estimates, balancing broad overviews with granular insights, and reducing biases.'],
+      ['What are the benefits of market sizing?', 'Identifies demand, ensures efforts are concentrated on greatest opportunities, reveals growth pathways, and highlights potential challenges.'],
+      ['What is a prototype?', 'A preliminary version or model of a product, service, or process used to test and validate ideas before final development.'],
+      ['What is the main goal of prototyping?', 'To test ideas early, reduce risk, and improve solutions through feedback.'],
+      ['What is low-fidelity prototyping?', 'A simple, low-detail prototype used to quickly explore ideas and concepts.'],
+      ['What is medium-fidelity prototyping?', 'A more detailed prototype, often digital, that shows structure and basic interactions.'],
+      ['What is high-fidelity prototyping?', 'A highly detailed prototype that closely resembles the final product.'],
+      ['What does fidelity mean in prototyping?', 'The level of accuracy or similarity of a prototype to the final product.'],
+      ['Why should startups avoid over-engineering prototypes?', 'Because prototypes are meant for learning and testing, not final deployment.'],
+      ['What is an MVP?', 'A Minimum Viable Product is a product with only essential features to solve a core problem and gather user feedback.'],
+      ['Is an MVP a prototype?', 'No, an MVP is a usable product tested with real users, while a prototype is mainly for validation and learning.'],
+      ['What is the primary purpose of an MVP?', 'To validate product-market fit using real customer feedback.'],
+      ['Why is iteration important in product development?', 'It allows continuous improvement based on feedback and learning.'],
+      ['What is opportunity assessment?', 'The process of evaluating whether a business idea is viable and worth pursuing.'],
+      ['What is competitive advantage?', 'A condition that enables a business to outperform competitors in the market.'],
+      ['What is competitor analysis?', 'The evaluation of competitors’ strengths and weaknesses to improve strategic positioning.'],
+      ['Why is competitor analysis critical for startups?', 'It helps reduce risk, identify differentiation, and refine business strategy.'],
+      ['What is market sizing?', 'Estimating the total potential market value or demand for a product or service.'],
+      ['What does TAM stand for?', 'Total Addressable Market.'],
+      ['What does SAM stand for?', 'Serviceable Available Market.'],
+      ['What does SOM stand for?', 'Serviceable Obtainable Market.'],
+      ['What is a USP?', 'A Unique Selling Proposition that differentiates a product from competitors.'],
+      ['Why is a USP important?', 'It helps customers understand why they should choose your product.'],
+      ['What is a positioning statement?', 'A statement that defines the target customer, market category, and key value proposition.'],
+      ['What is market positioning?', 'How a product is perceived relative to competitors in the minds of customers.'],
+      ['What is a competitive positioning map?', 'A visual chart plotting competitors based on key factors like price and quality.'],
+      ['Why are X-Y graphs used in competition analysis?', 'To visually compare competitors and identify market gaps.'],
+      ['What is a MOAT in business?', 'A sustainable advantage that protects a company from competitors.'],
+      ['Who popularized the concept of business MOAT?', 'Investor Warren Buffett.'],
+      ['What is a brand moat?', 'Customer loyalty and trust built through strong branding.'],
+      ['What is a network effect?', 'When a product becomes more valuable as more people use it.'],
+      ['What are switching costs?', 'The effort, time, or money required to change from one product to another.'],
+      ['What is intellectual property as a moat?', 'Legal protection that prevents competitors from copying innovations.'],
+      ['What are economies of scale?', 'Cost advantages gained by producing at a larger scale.'],
+      ['Why is customer feedback important?', 'It guides improvements and ensures solutions meet real user needs.'],
+      ['How did INT Technologies handle strong competitors?', 'By focusing on agility, personalized service, and niche markets.'],
+      ['What lesson does the INT Technologies case highlight?', 'Adaptability and strategic positioning are critical for survival.'],
+      ['Why is continuous competitor research necessary?', 'Markets evolve, and strategies must adapt to remain competitive.'],
+      ['What is customer journey mapping?', 'A visual representation of a customer’s experience with a product or service.'],
+      ['How does prototyping help investors?', 'It demonstrates feasibility, vision, and early validation.'],
+      ['What is the risk of assuming no competition?', 'Customers always have alternatives, including choosing not to buy.']
+    ]
+  },
+
+  {
+    id: 'builtin-technopreneurship',
+    title: 'Entrepreneurship in Tech',
+    subject: 'Technopreneurship',
+    description: 'Core concepts in technology entrepreneurship and startups.',
+    cards: [
+      ['What is technopreneurship?', 'Entrepreneurship that focuses on technology-based innovations'],
+      ['Startup', 'A new business focused on growth and innovation'],
+      ['Business model', 'A plan for how a company creates, delivers, and captures value'],
+      ['Pitch deck', 'A presentation to attract investors to a startup'],
+      ['Innovation', 'Developing new ideas, products, or services'],
+      ['Funding', 'Securing financial resources to grow a business'],
+      ['Market research', 'Studying market needs, trends, and competitors'],
+      ['Product development', 'Designing and building a product from concept to launch'],
+      ['Entrepreneurial mindset', 'Thinking creatively, taking risks, and solving problems'],
+      ['Scaling a business', 'Growing a startup efficiently to reach more customers'],
+      ['Lean startup', 'A methodology for developing businesses quickly with minimal waste'],
+      ['Value proposition', 'The unique value a product or service provides to customers'],
+      ['Customer validation', 'Testing assumptions by getting feedback from real users'],
+      ['Revenue streams', 'Ways a business generates income'],
+      ['Intellectual property', 'Protecting innovations through patents, copyrights, or trademarks'],
+      ['Business plan', 'A formal document detailing business goals and strategies'],
+      ['Networking', 'Building professional connections to support growth'],
+      ['Competition analysis', 'Studying competitors to identify advantages and threats'],
+      ['Technology adoption', 'Implementing new tech to improve products or services'],
+      ['Exit strategy', 'Plan for how a founder or investor will leave the business profitably']
+    ]
+  },
+
+  {
+    id: 'builtin-thesis-outline',
+    title: 'Electronics Engineering Topics',
+    subject: 'Thesis Outline Topics',
+    description: 'Essential topics for preparing an Electronics Engineering thesis.',
+    cards: [
+      ['Thesis purpose', 'To investigate, analyze, and present findings on a technical problem'],
+      ['Title selection', 'Choosing a concise and relevant topic for research'],
+      ['Abstract', 'A summary of the research, methodology, and results'],
+      ['Introduction', 'Background information and problem statement'],
+      ['Literature review', 'Survey of existing studies related to the research topic'],
+      ['Methodology', 'Detailed plan of how the research is conducted'],
+      ['Results', 'Presentation of data and findings'],
+      ['Discussion', 'Interpretation and analysis of the results'],
+      ['Conclusion', 'Summary of findings and recommendations'],
+      ['References', 'List of all sources cited in the research'],
+      ['Problem statement', 'The specific issue or question the research addresses'],
+      ['Scope and limitations', 'Defines boundaries and constraints of the research'],
+      ['Research objectives', 'Specific goals the research aims to achieve'],
+      ['Hypothesis formulation', 'Creating a testable prediction based on theory'],
+      ['Data collection methods', 'Techniques for gathering research data'],
+      ['Analysis techniques', 'Methods for interpreting and processing data'],
+      ['Figures and tables', 'Visual representations of data in the thesis'],
+      ['Appendices', 'Supplementary materials provided at the end of the thesis'],
+      ['Acknowledgments', 'Section to thank contributors and mentors'],
+      ['Future work', 'Suggestions for research or development beyond the current study']
+    ]
+  },
+
+  {
+    id: 'builtin-geography',
+    title: 'Basic Geography',
+    subject: 'Geography',
+    description: 'Basic geography facts and concepts.',
+    cards: [
+      ['Largest continent?', 'Asia'],
+      ['Longest river in the world?', 'Nile'],
+      ['Largest ocean?', 'Pacific'],
+      ['Highest mountain?', 'Mount Everest'],
+      ['Capital of France?', 'Paris'],
+      ['Country with most population?', 'China'],
+      ['Continent Australia is in?', 'Oceania'],
+      ['Imaginary line dividing Earth into N and S?', 'Equator'],
+      ['Largest desert?', 'Sahara'],
+      ['What is tectonic plate movement called?', 'Plate tectonics']
+    ]
+  },
+
+  {
+    id: 'builtin-chemistry',
+    title: 'Basic Chemistry',
+    subject: 'Chemistry',
+    description: 'Basic chemistry concepts and terminology.',
+    cards: [
+      ['Water formula?', 'H2O'],
+      ['Atomic number?', 'Number of protons'],
+      ['pH of pure water?', '7'],
+      ['Most abundant gas in air?', 'Nitrogen'],
+      ['Chemical symbol for gold?', 'Au'],
+      ['Process of solid to gas?', 'Sublimation'],
+      ['Acidic solution has pH?', '<7'],
+      ['Base solution has pH?', '>7'],
+      ['Covalent bond?', 'Sharing of electrons'],
+      ['Ionic bond?', 'Transfer of electrons']
+    ]
+  },
+
+  {
+    id: 'builtin-physics',
+    title: 'Basic Physics',
+    subject: 'Physics',
+    description: 'Basic physics formulas, units, and principles.',
+    cards: [
+      ['Force formula?', 'F = ma'],
+      ['Speed formula?', 'Distance ÷ Time'],
+      ['Acceleration formula?', 'Change in velocity ÷ Time'],
+      ['Unit of energy?', 'Joule'],
+      ['Unit of force?', 'Newton'],
+      ['Unit of power?', 'Watt'],
+      ['Gravity acceleration?', '9.8 m/s²'],
+      ['Light speed?', '3 × 10⁸ m/s'],
+      ["Newton's 1st law?", 'Inertia'],
+      ["Newton's 2nd law?", 'F = ma']
+    ]
+  },
+
+  {
+    id: 'builtin-art',
+    title: 'Basic Art',
+    subject: 'Art',
+    description: 'Basic art concepts, techniques, and famous artists.',
+    cards: [
+      ['Primary colors?', 'Red, Blue, Yellow'],
+      ['Famous painter of Mona Lisa?', 'Leonardo da Vinci'],
+      ['Art of making sculptures?', 'Sculpture'],
+      ['Famous Dutch painter of Starry Night?', 'Vincent van Gogh'],
+      ['Technique of shading?', 'Hatching'],
+      ['Mixing colors?', 'Color theory'],
+      ['Modern art style using geometric shapes?', 'Cubism'],
+      ['Art of decorative writing?', 'Calligraphy'],
+      ['Famous Mexican muralist?', 'Diego Rivera'],
+      ['Art movement with surreal imagery?', 'Surrealism']
+    ]
+  }
+];
+
 let sourceBooks = [];
 let libraryFolderId = null;
 let data = load();
@@ -52,6 +343,7 @@ let activeSetId = null;
 let timer = null;
 let timerSeconds = 25 * 60;
 
+window.builtinStudyState = null;
 /* ---------- persistence & helpers ---------- */
 function load() {
   try {
@@ -148,12 +440,48 @@ function updateChrome() {
   if (guestIcon) guestIcon.textContent = name.charAt(0).toUpperCase();
 }
 
+function updateSearchVisibility() {
+  const searchWrap = document.getElementById('searchWrap');
+
+  if (!searchWrap) return;
+
+  // Routes where the global search bar should be visible
+  const searchableRoutes = [
+    'home',
+    'library',
+    'explore',
+    'sets',
+    'flashcards',
+    'quizzes',
+    'notes'
+  ];
+
+  const shouldShow = searchableRoutes.includes(route);
+
+  searchWrap.hidden = !shouldShow;
+
+  // Also clear the search when leaving a searchable page
+  if (!shouldShow) {
+    const input = document.getElementById('globalSearch');
+    const results = document.getElementById('searchResults');
+    const clear = document.getElementById('searchClear');
+
+    if (input) input.value = '';
+    if (results) {
+      results.innerHTML = '';
+      results.hidden = true;
+    }
+    if (clear) clear.hidden = true;
+  }
+}
 /* ---------- routing & render ---------- */
 function render() {
   document.querySelectorAll('.nav-item').forEach(b =>
     b.classList.toggle('active', b.dataset.route === route)
   );
+
   const c = document.querySelector('#content');
+
   const views = {
     home: homeView,
     classes: classesView,
@@ -163,13 +491,26 @@ function render() {
     tools: toolsView,
     sets: setsView,
     flashcards: flashcardsView,
+
+    'builtin-flashcards': () => {
+      if (window.builtinStudyState) {
+        return builtinStudyView();
+      }
+
+      return builtinFlashcardsView();
+    },
+
     notes: notesView,
     profile: profileView,
     settings: settingsView
   };
+
   c.innerHTML = (views[route] || homeView)();
+
   updateChrome();
+  updateSearchVisibility();
 }
+
 function go(r) {
   route = r;
   if (r !== 'classes') {
@@ -1063,6 +1404,209 @@ function setsView() {
   );
 }
 
+function builtinFlashcardsView() {
+
+  return (
+    pageTitle(
+      'Built-in Flashcards',
+      'Official EcE Hub flashcards. These decks are read-only.'
+    ) +
+
+    `
+    <div class="builtin-flashcards-notice">
+      <span class="builtin-notice-icon">▤</span>
+      <div>
+        <strong>Built-in Study Material</strong>
+        <p>
+          These flashcards are provided by EcE Hub and cannot be edited
+          or deleted.
+        </p>
+      </div>
+    </div>
+
+    <div class="grid builtin-flashcard-grid">
+
+      ${
+        BUILTIN_FLASHCARDS.map(deck => `
+          <div class="card builtin-deck-card">
+
+            <div class="builtin-deck-icon">
+              ▧
+            </div>
+
+            <div class="builtin-deck-content">
+
+              <div class="builtin-badge">
+                BUILT-IN
+              </div>
+
+              <h3>
+                ${esc(deck.title)}
+              </h3>
+
+              <p class="builtin-subject">
+                ${esc(deck.subject)}
+              </p>
+
+              <p class="builtin-description">
+                ${esc(deck.description)}
+              </p>
+
+              <div class="builtin-meta">
+                ${deck.cards.length}
+                ${deck.cards.length === 1 ? 'card' : 'cards'}
+              </div>
+
+            </div>
+
+            <div class="builtin-actions">
+
+              <button
+                type="button"
+                class="btn primary"
+                data-action="study-builtin"
+                data-id="${deck.id}">
+                Study
+              </button>
+
+              <button
+                type="button"
+                class="btn"
+                data-action="view-builtin"
+                data-id="${deck.id}">
+                View Cards
+              </button>
+
+            </div>
+
+          </div>
+        `).join('')
+      }
+
+    </div>
+    `
+  );
+}
+
+function studyBuiltin(id) {
+
+  const deck = BUILTIN_FLASHCARDS.find(
+    x => x.id === id
+  );
+
+  if (!deck) {
+    return toast('Built-in flashcard deck not found');
+  }
+
+  if (!deck.cards.length) {
+    return toast('This deck has no flashcards');
+  }
+
+  window.builtinStudyState = {
+    deckId: id,
+    index: 0,
+    revealed: false
+  };
+
+  render();
+}
+
+function builtinStudyView() {
+
+  const state = window.builtinStudyState;
+
+  if (!state) {
+    return builtinFlashcardsView();
+  }
+
+  const deck = BUILTIN_FLASHCARDS.find(
+    x => x.id === state.deckId
+  );
+
+  if (!deck) {
+    window.builtinStudyState = null;
+    return builtinFlashcardsView();
+  }
+
+  const card = deck.cards[state.index];
+
+  const question = Array.isArray(card)
+    ? card[0]
+    : card;
+
+  const answer = Array.isArray(card)
+    ? card[1]
+    : '';
+
+  const shown = state.revealed;
+
+  return `
+    <div class="flash-study builtin-study">
+
+      ${pageTitle(
+        esc(deck.title),
+        `${esc(deck.subject)} • Card ${state.index + 1} of ${deck.cards.length}`,
+        `
+          <button
+            class="btn"
+            data-action="exit-builtin-study">
+            Exit
+          </button>
+        `
+      )}
+
+      <div class="builtin-readonly-label">
+        🔒 Built-in flashcards • Read-only
+      </div>
+
+      <div
+        class="card flash-card builtin-flash-card"
+        data-action="flip-builtin-card">
+
+        <div>
+
+          <div class="term">
+            ${esc(shown ? answer : question)}
+          </div>
+
+          <div class="hint">
+            ${
+              shown
+                ? 'Answer'
+                : 'Click to reveal answer'
+            }
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="study-controls">
+
+        <button
+          class="btn"
+          data-action="prev-builtin-card">
+          ← Previous
+        </button>
+
+        <button
+          class="btn primary"
+          data-action="flip-builtin-card">
+          ${shown ? 'Hide answer' : 'Reveal answer'}
+        </button>
+
+        <button
+          class="btn"
+          data-action="next-builtin-card">
+          Next →
+        </button>
+
+      </div>
+
+    </div>
+  `;
+}
+
 function flashcardsView() {
   if (!window.studyState) {
     return (
@@ -1157,7 +1701,7 @@ function toolsView() {
         <h2>Quick Calculator</h2>
         <div class="field"><input id="calcInput" placeholder="e.g. 12*24+5"></div>
         <button class="btn primary" style="margin-top:10px" data-action="calculate">Calculate</button>
-        <div id="calcResult" style="font-size:22px;font-weight:800;margin-top:18px">—</div>
+        <div id="calcResult" style="font-size:var(--font-subheading);font-weight:800;margin-top:18px">—</div>
       </div>
       <div class="card">
         <h2>Study Checklist</h2>
@@ -1638,7 +2182,7 @@ function renderQuizQuestion(q) {
   const options = Array.isArray(item.options) ? item.options : [];
   openModal(
     `<h2>${esc(q.title)}</h2>
-     <div style="color:var(--muted);font-size:12px">Question ${st.index + 1} of ${q.questions.length}</div>
+     <div style="color:var(--muted);font-size:var(--font-small)">Question ${st.index + 1} of ${q.questions.length}</div>
      <div class="question">${esc(item.q)}</div>
      ${options.map((o, i) =>
        `<button class="option" data-action="answer-quiz" data-index="${i}">${esc(o)}</button>`
@@ -2439,6 +2983,79 @@ if (a === 'remove-set-card') {
 
   return;
 }
+if (a === 'study-builtin') {
+  return studyBuiltin(id);
+}
+
+if (a === 'view-builtin') {
+  return studyBuiltin(id);
+}
+
+if (a === 'exit-builtin-study') {
+  window.builtinStudyState = null;
+  return go('builtin-flashcards');
+}
+
+if (a === 'flip-builtin-card') {
+
+  if (!window.builtinStudyState) {
+    return;
+  }
+
+  window.builtinStudyState.revealed =
+    !window.builtinStudyState.revealed;
+
+  return render();
+}
+
+if (a === 'next-builtin-card') {
+
+  const state = window.builtinStudyState;
+
+  if (!state) {
+    return;
+  }
+
+  const deck = BUILTIN_FLASHCARDS.find(
+    x => x.id === state.deckId
+  );
+
+  if (!deck || !deck.cards.length) {
+    return;
+  }
+
+  state.index =
+    (state.index + 1) % deck.cards.length;
+
+  state.revealed = false;
+
+  return render();
+}
+
+if (a === 'prev-builtin-card') {
+
+  const state = window.builtinStudyState;
+
+  if (!state) {
+    return;
+  }
+
+  const deck = BUILTIN_FLASHCARDS.find(
+    x => x.id === state.deckId
+  );
+
+  if (!deck || !deck.cards.length) {
+    return;
+  }
+
+  state.index =
+    (state.index - 1 + deck.cards.length)
+    % deck.cards.length;
+
+  state.revealed = false;
+
+  return render();
+}
 }
 
 /* ---------- timer ---------- */
@@ -2825,7 +3442,7 @@ function renderStudyGoal() {
         </button>
       </div>
 
-      <p style="color:var(--muted);font-size:12px">
+      <p style="color:var(--muted);font-size:var(--font-small);">
         Keep your streak going!
       </p>
 
@@ -2842,7 +3459,7 @@ function renderStudyGoal() {
         display:flex;
         justify-content:space-between;
         color:var(--muted);
-        font-size:10px;
+        font-size:var(--font-small);
       ">
         ${goal.days.map(day => `
           <span>
@@ -2853,7 +3470,6 @@ function renderStudyGoal() {
     </div>
   `;
 }
-
 loadLibraryData();
 /* ---------- boot ---------- */
 render();
