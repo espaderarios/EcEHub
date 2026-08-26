@@ -221,25 +221,30 @@ function homeView() {
         </div>
       </div>
       <div class="side-stack">
+
         <div class="card">
-          <div class="section-head"><h2>Recent Activity</h2></div>
+          <div class="section-head">
+            <h2>Recent Activity</h2>
+          </div>
+
           ${data.activity.map(a =>
             `<div class="activity-item">
-              <div class="activity-icon" style="background:#e0f7eb">✓</div>
-              <div><strong>${esc(a.text)}</strong><span>${esc(a.sub)}</span></div>
+              <div class="activity-icon" style="background: var(--card)">
+                ✓
+              </div>
+
+              <div>
+                <strong>${esc(a.text)}</strong>
+                <span>${esc(a.sub)}</span>
+              </div>
+
               <time>${esc(a.time)}</time>
             </div>`
           ).join('')}
         </div>
-        <div class="card">
-          <div class="section-head"><h2>Study Goal</h2><button class="btn">This Week</button></div>
-          <p style="color:var(--muted);font-size:12px">Keep your streak going!</p>
-          <div class="goal-big">4 <span>/ 7 days</span></div>
-          <div class="goal-progress"><i style="width:57%"></i></div>
-          <div style="display:flex;justify-content:space-between;color:var(--muted);font-size:10px">
-            <span>Mon ✓</span><span>Tue ✓</span><span>Wed ✓</span><span>Thu ✓</span><span>Fri</span><span>Sat</span><span>Sun</span>
-          </div>
-        </div>
+
+        ${renderStudyGoal()}
+
       </div>
     </div>`
   );
@@ -2655,78 +2660,62 @@ function closeSearch() {
 
 function goSearchResult(type, id, route) {
   closeSearch();
+
   if (type === 'set') {
     studySet(id);
     return;
   }
+
   if (type === 'quiz') {
     go('quizzes');
-    // slight delay so view is ready, then open quiz
+
+    // Slight delay so the view is ready, then open quiz
     setTimeout(() => takeQuiz(id), 50);
     return;
   }
-if (type === 'book') {
-  const obj = {
-    id: uid,
-    title: document.querySelector('#f-title').value.trim(),
-    author: document.querySelector('#f-author').value.trim(),
-    course: document.querySelector('#f-course').value.trim(),
-    folderId: document.querySelector('#f-folder')?.value || '',
-    url: document.querySelector('#f-url').value.trim()
-  };
 
-  const old = data.books.find(x => x.id === id);
+  if (type === 'book') {
+    const book = data.books?.find(book => book.id === id);
 
-  if (old) {
-    Object.assign(old, obj);
-  } else {
-    data.books.push(obj);
-  }
-}
-if (a === 'add-library-folder') {
-  openModal(`
-    <h2>New Library Folder</h2>
+    if (!book) {
+      toast('Book not found');
+      return;
+    }
 
-    <div class="field">
-      <label>Folder Name</label>
-      <input
-        id="f-folder-name"
-        placeholder="e.g. Circuits"
-        autofocus>
-    </div>
+    // Go to the library
+    go('library');
 
-    <div class="modal-actions">
-      <button class="btn" data-action="close-modal">
-        Cancel
-      </button>
+    // Open the folder containing the book
+    if (book.folderId) {
+      libraryFolderId = book.folderId;
+    }
 
-      <button class="btn primary" data-action="save-library-folder">
-        Create Folder
-      </button>
-    </div>
-  `);
+    render();
 
-  return;
-}
+    // Open the PDF after the library view is ready
+    setTimeout(() => {
+      const currentBook = data.books?.find(book => book.id === id);
 
-if (a === 'back-library') {
-  libraryFolderId = null;
-  render();
-  return;
-}
-if (a === 'add-book-to-folder') {
-  const folder = data.folders?.find(f => f.id === id);
+      if (!currentBook) {
+        toast('Book not found');
+        return;
+      }
 
-  if (!folder) {
-    return toast('Folder not found');
+      if (!currentBook.driveUrl && !currentBook.url) {
+        toast('No PDF link configured');
+        return;
+      }
+
+      const pdfUrl = currentBook.driveUrl || currentBook.url;
+
+      window.open(pdfUrl, '_blank');
+    }, 50);
+
+    return;
   }
 
-  openBookForm(null, folder.id);
-  return;
-}
   go(route || 'home');
 }
-
 const searchInput = document.querySelector('#globalSearch');
 if (searchInput) {
   searchInput.addEventListener('input', e => renderSearchResults(e.target.value));
@@ -2755,6 +2744,115 @@ document.addEventListener('click', e => {
     if (panel) panel.hidden = true;
   }
 });
+
+function getStudyGoalData() {
+  const today = new Date();
+
+  // Monday = start of week
+  const startOfWeek = new Date(today);
+  const day = startOfWeek.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+
+  startOfWeek.setDate(startOfWeek.getDate() + diff);
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  const days = [];
+
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(startOfWeek);
+    date.setDate(startOfWeek.getDate() + i);
+
+    days.push({
+      date,
+      label: date.toLocaleDateString('en-US', {
+        weekday: 'short'
+      }),
+      studied: false
+    });
+  }
+
+  /*
+   * Use the existing activity data.
+   *
+   * IMPORTANT:
+   * This assumes activity entries contain a date/time field.
+   */
+  if (Array.isArray(data.activity)) {
+    days.forEach(day => {
+      const target = day.date.toISOString().slice(0, 10);
+
+      day.studied = data.activity.some(activity => {
+        const value =
+          activity.date ||
+          activity.createdAt ||
+          activity.timestamp;
+
+        if (!value) return false;
+
+        const activityDate = new Date(value);
+
+        if (Number.isNaN(activityDate.getTime())) {
+          return false;
+        }
+
+        return activityDate.toISOString().slice(0, 10) === target;
+      });
+    });
+  }
+
+  const completed = days.filter(day => day.studied).length;
+
+  return {
+    completed,
+    total: 7,
+    percentage: Math.round((completed / 7) * 100),
+    days
+  };
+}
+
+function renderStudyGoal() {
+  const goal = getStudyGoalData();
+
+  return `
+    <div class="card">
+      <div class="section-head">
+        <h2>Study Goal</h2>
+
+        <button
+          type="button"
+          class="btn">
+          This Week
+        </button>
+      </div>
+
+      <p style="color:var(--muted);font-size:12px">
+        Keep your streak going!
+      </p>
+
+      <div class="goal-big">
+        ${goal.completed}
+        <span>/ ${goal.total} days</span>
+      </div>
+
+      <div class="goal-progress">
+        <i style="width:${goal.percentage}%"></i>
+      </div>
+
+      <div style="
+        display:flex;
+        justify-content:space-between;
+        color:var(--muted);
+        font-size:10px;
+      ">
+        ${goal.days.map(day => `
+          <span>
+            ${day.label}${day.studied ? ' ✓' : ''}
+          </span>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
 
 loadLibraryData();
 /* ---------- boot ---------- */
