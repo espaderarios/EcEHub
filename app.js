@@ -407,7 +407,7 @@ function linkGoogleAccount() {
     `${COMMUNITY_API_BASE}/api/auth/google/start`;
 }
 
-function handleGoogleLinkCallback() {
+async function handleGoogleLinkCallback() {
   const url = new URL(window.location.href);
 
   const linked =
@@ -417,21 +417,81 @@ function handleGoogleLinkCallback() {
     url.searchParams.get('community_google_error');
 
   if (linked === '1') {
-    toast('Google account linked successfully.');
+    try {
+      /*
+       * Google OAuth succeeded on the backend.
+       * Fetch the current user again so the frontend gets
+       * the newly linked Google identity from D1.
+       */
+      const response = await communityFetch(
+        '/api/users/me',
+        {
+          method: 'GET'
+        }
+      );
 
-    url.searchParams.delete('community_google_linked');
+      if (!response.ok) {
+        throw new Error(
+          `Failed to refresh community profile (${response.status})`
+        );
+      }
 
-    window.history.replaceState(
-      {},
-      document.title,
-      url.pathname +
-        (url.searchParams.toString()
-          ? `?${url.searchParams.toString()}`
-          : '') +
-        url.hash
-    );
+      const result = await response.json();
 
-    return true;
+      if (result.user) {
+        communityUser =
+          normalizeCommunityUser(result.user);
+
+        communityReady = true;
+
+        console.log(
+          'Google account linked. Refreshed user:',
+          communityUser
+        );
+      }
+
+      toast(
+        'Google account linked successfully.'
+      );
+
+      /*
+       * Remove the OAuth callback parameter from
+       * the browser URL.
+       */
+      url.searchParams.delete(
+        'community_google_linked'
+      );
+
+      window.history.replaceState(
+        {},
+        document.title,
+        url.pathname +
+          (url.searchParams.toString()
+            ? `?${url.searchParams.toString()}`
+            : '') +
+          url.hash
+      );
+
+      /*
+       * Re-render the current page so Profile immediately
+       * changes from Guest account → Google account linked.
+       */
+      render();
+
+      return true;
+
+    } catch (err) {
+      console.error(
+        'Failed to refresh Google-linked community user:',
+        err
+      );
+
+      toast(
+        'Google account was linked, but the profile could not be refreshed. Please reload the page.'
+      );
+
+      return false;
+    }
   }
 
   if (error) {
@@ -5885,8 +5945,11 @@ function renderStudyGoal() {
 loadLibraryData();
 
 (async () => {
+
   await initializeCommunitySession();
-  handleGoogleLinkCallback();
+
+  await handleGoogleLinkCallback();
+
 })();
 /* ---------- boot ---------- */
 render();
