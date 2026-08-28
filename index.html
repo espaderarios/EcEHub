@@ -28,35 +28,88 @@
       <button class="nav-item" data-route="profile"><span>◉</span>Profile</button>
       <button class="nav-item" data-route="settings"><span>⚙</span>Settings</button>
     </nav>
-    <div class="guest-card"><div class="guest-icon">S</div><div><strong>Student</strong><span>Local workspace</span></div><button id="resetData">Reset Data</button></div>
+    <div class="guest-card"><div><span>Local workspace</span></div><button id="resetData">Reset Data</button></div>
   </aside>
 
   <main class="main">
-    <header class="topbar">
-      <button class="menu-button" id="menuButton">☰</button>
-      <div class="search" id="searchWrap">
-        <span class="search-icon">⌕</span>
-        <input id="globalSearch" placeholder="Search notes, sets, quizzes, PDFs..." autocomplete="off">
-        <button type="button" class="search-clear" id="searchClear" hidden aria-label="Clear search">×</button>
-        <div class="search-results" id="searchResults" hidden></div>
-      </div>
-      <div class="top-actions">
-        <button class="icon-button" id="themeButton">☾</button>
-        <button class="icon-button" id="helpButton">?</button>
-        <div class="profile-divider"></div>
-        <div class="profile" data-action="edit-profile">
-        <div>
-          <strong id="headerName">Student</strong>
-          <span id="headerUsername">EcE Learner</span>
-        </div>
+  <header class="topbar">
 
-        <div class="avatar" id="headerAvatar">
-          S
-          <span></span>
-        </div>
+    <button
+      type="button"
+      class="menu-button"
+      id="menuButton"
+      aria-label="Open menu"
+    >
+      ☰
+    </button>
+
+    <div class="search" id="searchWrap">
+
+      <span class="search-icon">⌕</span>
+
+      <input
+        id="globalSearch"
+        type="search"
+        placeholder="Search notes, sets, quizzes, PDFs..."
+        autocomplete="off"
+      >
+
+      <button
+        type="button"
+        class="search-clear"
+        id="searchClear"
+        hidden
+        aria-label="Clear search"
+      >
+        ×
+      </button>
+
+      <div
+        class="search-results"
+        id="searchResults"
+        hidden
+      ></div>
+
+    </div>
+
+    <div class="top-actions">
+
+      <button
+        type="button"
+        class="icon-button"
+        id="themeButton"
+        aria-label="Toggle theme"
+      >
+        ☾
+      </button>
+
+      <button
+        type="button"
+        class="icon-button"
+        id="helpButton"
+        aria-label="Help"
+      >
+        ?
+      </button>
+
+      <div class="profile-divider"></div>
+
+      <button
+        type="button"
+        class="profile"
+        id="communityProfileButton"
+        data-action="edit-profile"
+      >
+
+      <div class="profile-info">
+        <span id="headerUsername"></span>
       </div>
-      </div>
-    </header>
+
+      </button>
+
+    </div>
+
+  </header>
 
     <section class="content" id="content"></section>
   </main>

@@ -693,22 +693,59 @@ function toggleTheme() {
   if (saved === 'dark') applyTheme(true);
 })();
 
-/* ---------- header / guest card sync ---------- */
 function updateChrome() {
-  const name = data.profile.name || 'Student';
-  const course = data.profile.course || 'EcE Learner';
-  const headerName = document.querySelector('#headerName');
-  if (headerName) headerName.textContent = name;
-  const headerCourse = document.querySelector('.profile span');
-  if (headerCourse) headerCourse.textContent = course;
-  const avatar = document.querySelector('.avatar');
-  if (avatar) {
-    avatar.childNodes[0].textContent = name.charAt(0).toUpperCase();
+  const displayNameEl =
+    document.getElementById('displayName');
+
+  const usernameEl =
+    document.getElementById('headerUsername');
+
+  const avatarEl =
+    document.getElementById('communityProfileAvatar') ||
+    document.getElementById('headerAvatar');
+
+  if (!communityUser) {
+    if (displayNameEl) {
+      displayNameEl.textContent = 'Student';
+    }
+
+    if (usernameEl) {
+      usernameEl.textContent = '';
+    }
+
+    if (avatarEl) {
+      avatarEl.innerHTML = `
+        <span class="profile-avatar-fallback">
+          S
+        </span>
+      `;
+    }
+
+    return;
   }
-  const guestStrong = document.querySelector('.guest-card strong');
-  if (guestStrong) guestStrong.textContent = name;
-  const guestIcon = document.querySelector('.guest-icon');
-  if (guestIcon) guestIcon.textContent = name.charAt(0).toUpperCase();
+
+  const displayName =
+    communityUser.displayName ||
+    communityUser.username ||
+    'Student';
+
+  const username =
+    communityUser.username ||
+    '';
+
+  if (displayNameEl) {
+    displayNameEl.textContent = displayName;
+  }
+
+  if (usernameEl) {
+    usernameEl.textContent =
+      username ? `@${username}` : '';
+  }
+
+  if (avatarEl) {
+    avatarEl.innerHTML =
+      communityProfileAvatar();
+  }
 }
 
 function updateSearchVisibility() {
@@ -2277,12 +2314,13 @@ function profileView() {
 
         <div class="profile-actions">
 
-          <button
-            class="btn primary"
-            data-action="edit-profile"
-          >
-            Edit profile
-          </button>
+        <button
+          type="button"
+          class="btn primary"
+          data-action="edit-profile"
+        >
+          Edit profile
+        </button>
 
           ${
             googleLinked
@@ -4079,27 +4117,38 @@ async function removeFlashcardSetFromWorkspace(setId) {
 
 function communityProfileAvatar() {
   if (!communityUser) {
-    return `<span class="profile-avatar-fallback">?</span>`;
+    return `
+      <span class="profile-avatar-fallback">
+        ?
+      </span>
+    `;
   }
 
   const name =
     communityUser.displayName ||
     communityUser.username ||
-    '?';
+    'Student';
 
-  const initial = name.trim().charAt(0).toUpperCase();
+  const initial =
+    name.trim().charAt(0).toUpperCase() || 'S';
 
   if (communityUser.avatarUrl) {
     return `
       <img
         src="${esc(communityUser.avatarUrl)}"
-        alt="${esc(name)}"
-        onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
+        alt=""
+        onerror="
+          this.style.display='none';
+          this.nextElementSibling.style.display='flex';
+        "
       >
+
       <span
         class="profile-avatar-fallback"
-        style="display:none"
-      >${esc(initial)}</span>
+        style="display:none;"
+      >
+        ${esc(initial)}
+      </span>
     `;
   }
 
@@ -4135,159 +4184,193 @@ async function openCommunityProfileModal() {
     modal.className = 'modal-backdrop';
 
     modal.innerHTML = `
-      <div class="modal-card" style="max-width:560px;width:calc(100% - 32px);">
-        <div class="modal-header">
-          <div>
-            <h2>Edit profile</h2>
-            <p style="color:var(--muted);margin:4px 0 0;">
-              Your community identity and flashcard author profile.
-            </p>
+  <div class="community-profile-modal-card">
+
+    <div class="community-profile-modal-header">
+
+      <div>
+        <h2>Edit profile</h2>
+
+        <p>
+          Your community identity and flashcard author profile.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        class="community-profile-modal-close"
+        data-action="close-community-profile-modal"
+        aria-label="Close"
+      >
+        ×
+      </button>
+
+    </div>
+
+
+    <div class="community-profile-modal-body">
+
+      <!-- PROFILE PREVIEW -->
+
+      <div class="community-profile-preview">
+
+        <div class="community-profile-preview-avatar">
+          ${
+            user.avatarUrl
+              ? `
+                <img
+                  src="${esc(user.avatarUrl)}"
+                  alt=""
+                >
+              `
+              : esc(
+                  (
+                    user.displayName ||
+                    user.username ||
+                    'U'
+                  )
+                    .trim()
+                    .charAt(0)
+                    .toUpperCase()
+                )
+          }
+        </div>
+
+        <div class="community-profile-preview-info">
+
+          <strong class="community-profile-preview-name">
+            ${esc(
+              user.displayName ||
+              user.username ||
+              'Student'
+            )}
+          </strong>
+
+          <div class="community-profile-preview-username">
+            @${esc(user.username || 'guest')}
           </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- FORM -->
+
+      <form
+        id="community-profile-form"
+        class="community-profile-form"
+      >
+
+        <label class="community-profile-field">
+
+          <span>
+            Username
+          </span>
+
+          <input
+            id="community-profile-username"
+            name="username"
+            type="text"
+            maxlength="24"
+            minlength="3"
+            pattern="[A-Za-z0-9_]{3,24}"
+            value="${esc(user.username || '')}"
+            autocomplete="off"
+            required
+          >
+
+          <small
+            id="community-username-status"
+            class="community-profile-username-status"
+          >
+            3–24 letters, numbers, or underscores.
+          </small>
+
+        </label>
+
+
+        <label class="community-profile-field">
+
+          <span>
+            Display name
+          </span>
+
+          <input
+            name="displayName"
+            type="text"
+            maxlength="80"
+            value="${esc(user.displayName || '')}"
+          >
+
+        </label>
+
+
+        <label class="community-profile-field">
+
+          <span>
+            Avatar URL
+          </span>
+
+          <input
+            name="avatarUrl"
+            type="url"
+            maxlength="500"
+            value="${esc(user.avatarUrl || '')}"
+            placeholder="https://..."
+          >
+
+        </label>
+
+
+        <label class="community-profile-field">
+
+          <span>
+            Bio
+          </span>
+
+          <textarea
+            name="bio"
+            maxlength="500"
+            rows="4"
+            placeholder="Tell other EcE Hub users a little about yourself."
+          >${esc(user.bio || '')}</textarea>
+
+        </label>
+
+
+        <div
+          id="community-profile-error"
+          class="community-profile-error"
+        ></div>
+
+
+        <div class="community-profile-modal-actions">
 
           <button
             type="button"
-            class="icon-btn"
+            class="btn"
             data-action="close-community-profile-modal"
-            aria-label="Close"
           >
-            ×
+            Cancel
           </button>
+
+          <button
+            type="submit"
+            class="btn primary"
+            id="save-community-profile"
+          >
+            Save profile
+          </button>
+
         </div>
 
-        <div style="display:flex;align-items:center;gap:16px;margin:20px 0;">
-          <div
-            style="
-              width:72px;
-              height:72px;
-              border-radius:50%;
-              display:flex;
-              align-items:center;
-              justify-content:center;
-              background:var(--primary);
-              color:white;
-              font-size:28px;
-              font-weight:700;
-              overflow:hidden;
-            "
-          >
-            ${
-              user.avatarUrl
-                ? `<img src="${esc(user.avatarUrl)}"
-                     alt=""
-                     style="width:100%;height:100%;object-fit:cover;">`
-                : esc((user.displayName || user.username || 'U').charAt(0).toUpperCase())
-            }
-          </div>
+      </form>
 
-          <div>
-            <strong style="font-size:18px;">
-              ${esc(user.displayName || user.username)}
-            </strong>
+    </div>
 
-            <div style="color:var(--muted);">
-              @${esc(user.username)}
-            </div>
-          </div>
-        </div>
-
-        <form id="community-profile-form">
-
-          <label class="field">
-            <span>Username</span>
-
-            <input
-              id="community-profile-username"
-              name="username"
-              type="text"
-              maxlength="24"
-              minlength="3"
-              pattern="[A-Za-z0-9_]{3,24}"
-              value="${esc(user.username || '')}"
-              autocomplete="off"
-              required
-            >
-
-            <small id="community-username-status"
-              style="display:block;margin-top:6px;color:var(--muted);">
-              3–24 letters, numbers, or underscores.
-            </small>
-          </label>
-
-          <label class="field">
-            <span>Display name</span>
-
-            <input
-              name="displayName"
-              type="text"
-              maxlength="80"
-              value="${esc(user.displayName || '')}"
-            >
-          </label>
-
-          <label class="field">
-            <span>Avatar URL</span>
-
-            <input
-              name="avatarUrl"
-              type="url"
-              maxlength="500"
-              value="${esc(user.avatarUrl || '')}"
-              placeholder="https://..."
-            >
-          </label>
-
-          <label class="field">
-            <span>Bio</span>
-
-            <textarea
-              name="bio"
-              maxlength="500"
-              rows="4"
-              placeholder="Tell other EcE Hub users a little about yourself."
-            >${esc(user.bio || '')}</textarea>
-          </label>
-
-          <div
-            id="community-profile-error"
-            style="
-              display:none;
-              margin-top:12px;
-              padding:10px 12px;
-              border-radius:8px;
-              background:rgba(220,38,38,.1);
-              color:#dc2626;
-            "
-          ></div>
-
-          <div
-            style="
-              display:flex;
-              justify-content:flex-end;
-              gap:10px;
-              margin-top:20px;
-            "
-          >
-            <button
-              type="button"
-              class="btn"
-              data-action="close-community-profile-modal"
-            >
-              Cancel
-            </button>
-
-            <button
-              type="submit"
-              class="btn primary"
-              id="save-community-profile"
-            >
-              Save profile
-            </button>
-          </div>
-
-        </form>
-      </div>
-    `;
-
+  </div>
+`;
     document.body.appendChild(modal);
 
     const form = document.getElementById('community-profile-form');
@@ -4639,6 +4722,7 @@ function updateCommunityHeader() {
 
 /* ---------- event binding (delegated — works for modals too) ---------- */
 function action(a, id, index, el) {
+  console.log('ACTION:', a, el);
   if (a === 'search-go') {
     return goSearchResult(el?.dataset.type || '', id, el?.dataset.route || '');
   }
@@ -4661,6 +4745,25 @@ function action(a, id, index, el) {
     route = 'classes';
     render();
     window.scrollTo(0, 0);
+    return;
+  }
+      if (a === 'edit-profile') {
+      console.log('EDIT PROFILE CLICKED');
+      openCommunityProfileModal();
+      return;
+    }
+
+    if (a === 'close-community-profile-modal') {
+      closeCommunityProfileModal();
+      return;
+    }
+        if (a === 'save-community-profile') {
+    data.profile.name = document.querySelector('#profile-name').value || 'Student';
+    data.profile.course = document.querySelector('#profile-course').value || 'EcE Learner';
+    save();
+    closeModal();
+    render();
+    toast('Profile updated');
     return;
   }
     /* ==============================
@@ -5359,24 +5462,7 @@ if (a === 'confirm-delete-set') {
     }
     return;
   }
-  if (a === 'edit-profile') {
-    openCommunityProfileModal();
-    return;
-  }
 
-  if (a === 'close-community-profile') {
-    closeCommunityProfileModal();
-    return;
-  }
-    if (a === 'save-profile') {
-    data.profile.name = document.querySelector('#profile-name').value || 'Student';
-    data.profile.course = document.querySelector('#profile-course').value || 'EcE Learner';
-    save();
-    closeModal();
-    render();
-    toast('Profile updated');
-    return;
-  }
   if (a === 'add-set-card') {
     const container = document.querySelector('#set-cards');
     if (!container) return;
