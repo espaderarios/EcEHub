@@ -5554,17 +5554,16 @@ if (a === 'confirm-delete-set') {
 
     return;
   }
-  if (a === 'link-google') {
+  if (a === 'unlink-google') {
 
-    linkGoogleAccount();
+    unlinkGoogleAccount();
 
     return;
 
   }
+  if (a === 'link-google') {
 
-  if (a === 'unlink-google') {
-
-    unlinkGoogleAccount();
+    linkGoogleAccount();
 
     return;
 
