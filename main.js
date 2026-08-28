@@ -1,10 +1,15 @@
 const KEY = 'eceHubDataV3';
 const THEME_KEY = 'eceHubTheme';
 
-const AI_FLASHCARD_API = {
-  baseURL: 'https://ecehub-backend.onrender.com',
-  generateEndpoint: '/api/ai/flashcards/generate'
+/* Minimal line icons (SVG Repo–style, currentColor) */
+const ICO = {
+  back: `<svg class="ico" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M15 18l-6-6 6-6"/></svg>`,
+  edit: `<svg class="ico" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>`,
+  plus: `<svg class="ico" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>`,
+  trash: `<svg class="ico" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>`,
+  folder: `<svg class="ico" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>`
 };
+
 
 const seed = {
   profile: { name: 'Student', course: 'EcE Learner' },
@@ -497,8 +502,6 @@ function render() {
     sets: setsView,
     flashcards: flashcardsView,
 
-    'ai-flashcard-maker': aiFlashcardMakerView,
-
     'builtin-flashcards': () => {
       if (window.builtinStudyState) {
         return builtinStudyView();
@@ -527,15 +530,6 @@ function go(r) {
   closeSidebar();
   render();
   window.scrollTo(0, 0);
-}
-
-function escapeHTML(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
 }
 
 function setsForClass(cls) {
@@ -812,7 +806,7 @@ function renderLibrary(books) {
                     src="${thumbnail}" 
                     alt="${book.title}"
                     loading="lazy"
-                    onerror="this.src='assets/pdf-placeholder.svg';"
+                    onerror="this.src='assets/pdf-placeholder.png'"
                 >
             </div>
 
@@ -931,27 +925,14 @@ function libraryView() {
         `📁 ${esc(folder.name)}`,
         `${books.length} ${books.length === 1 ? 'book' : 'books'} in this folder.`,
         `
-          <button
-            type="button"
-            class="btn"
-            data-action="back-library">
-            ← Library
+          <button type="button" class="btn btn-back" data-action="back-library">
+            ${ICO.back}<span class="label-back-library">Back</span>
           </button>
-
-          <button
-            type="button"
-            class="btn"
-            data-action="edit-library-folder"
-            data-id="${folder.id}">
-            Edit Folder
+          <button type="button" class="btn btn-secondary" data-action="edit-library-folder" data-id="${folder.id}">
+            ${ICO.edit}<span class="label-edit-library">Edit Folder</span>
           </button>
-
-          <button
-            type="button"
-            class="btn primary"
-            data-action="add-book-to-folder"
-            data-id="${folder.id}">
-            + Add Book
+          <button type="button" class="btn primary" data-action="add-book-to-folder" data-id="${folder.id}">
+            ${ICO.plus}<span class="label-add-book">Add Book</span>
           </button>
         `
       ) +
@@ -1022,7 +1003,7 @@ function libraryView() {
                         src="${getFolderThumbnail(folder.id)}"
                         alt="${esc(folder.name)}"
                         loading="lazy"
-                        onerror="this.onerror=null; this.src='assets/pdf-placeholder.svg';"
+                        onerror="this.onerror=null; this.src='assets/pdf-placeholder.png';"
                     >
                 </div>
 
@@ -1120,7 +1101,7 @@ function renderLibraryBook(book) {
                     src="${thumbnail}"
                     alt="${esc(book.title)}"
                     loading="lazy"
-                    onerror="this.onerror=null; this.src='assets/pdf-placeholder.svg';"
+                    onerror="this.onerror=null; this.src='assets/pdf-placeholder.png';"
                 >
             </div>
 
@@ -1206,7 +1187,7 @@ function renderFolderBookCard(book) {
                     src="${thumbnail}"
                     alt="${esc(book.title)}"
                     loading="lazy"
-                    onerror="this.onerror=null; this.src='assets/pdf-placeholder.svg';"
+                    onerror="this.onerror=null; this.src='assets/pdf-placeholder.png';"
                 >
             </div>
 
@@ -1274,7 +1255,7 @@ function renderBookCard(book) {
                     src="${thumbnail}"
                     alt="${esc(book.title)}"
                     loading="lazy"
-                    onerror="this.onerror=null; this.src='assets/pdf-placeholder.svg';"
+                    onerror="this.onerror=null; this.src='assets/pdf-placeholder.png';"
                 >
             </div>
 
@@ -1626,35 +1607,15 @@ function builtinStudyView() {
 function flashcardsView() {
   if (!window.studyState) {
     return (
-     pageTitle('Flashcards', 'Choose a study set to begin.') +
-    `<div class="flashcards-actions">
-    <button
-      type="button"
-      class="btn primary"
-      data-action="open-ai-flashcard-maker">
-      ✨ AI Flashcard Maker
-    </button>
-    </div>` +
-    `<div class="grid set-grid">
-      ${data.sets.map(s =>
+      pageTitle('Flashcards', 'Choose a study set to begin.') +
+      `<div class="grid set-grid">${data.sets.map(s =>
         `<div class="card set-card">
           <h3>${esc(s.title)}</h3>
           <p>${esc(s.subject)}</p>
-
-          <div class="set-meta">
-            ${s.cards.length} cards
-          </div>
-
-          <button
-            class="btn primary"
-            style="margin-top:16px"
-            data-action="study-set"
-            data-id="${s.id}">
-            Start studying
-          </button>
+          <div class="set-meta">${s.cards.length} cards</div>
+          <button class="btn primary" style="margin-top:16px" data-action="study-set" data-id="${s.id}">Start studying</button>
         </div>`
-      ).join('')}
-    </div>`
+      ).join('')}</div>`
     );
   }
 
@@ -1717,10 +1678,6 @@ function quizzesView() {
       </div>`
     ).join('')}</div>`
   );
-}
-
-function escapeAttribute(value) {
-  return escapeHTML(value);
 }
 
 function toolsView() {
@@ -2235,718 +2192,6 @@ function studySet(id) {
   go('flashcards');
 }
 
-async function generateAIFlashcards() {
-
-  console.log('=== AI FLASHCARD GENERATOR STARTED ===');
-
-  const status =
-    document.querySelector('#aiFlashcardStatus');
-
-  const button =
-    document.querySelector(
-      '[data-action="generate-ai-flashcards"]'
-    );
-
-  const bookId =
-    document.querySelector('#aiFlashcardBook')?.value || '';
-
-  const book =
-    data.books?.find(b => b.id === bookId);
-
-  console.log('Book ID:', bookId);
-  console.log('Selected book:', book);
-
-  // -----------------------------
-  // Validate PDF
-  // -----------------------------
-
-  if (!book) {
-
-    if (status) {
-      status.textContent =
-        'Please select a PDF from your Library.';
-    }
-
-    return;
-  }
-
-  const driveUrl =
-    book.driveUrl ||
-    book.url ||
-    '';
-
-  console.log('Drive URL:', driveUrl);
-
-  if (!driveUrl) {
-
-    if (status) {
-      status.textContent =
-        'The selected PDF does not have a Google Drive link.';
-    }
-
-    return;
-  }
-
-  // -----------------------------
-  // Chapters
-  // -----------------------------
-
-  const chapters =
-    document
-      .querySelector('#aiFlashcardChapters')
-      ?.value
-      .trim() || '';
-
-  console.log('Chapters:', chapters);
-
-  if (!chapters) {
-
-    if (status) {
-      status.textContent =
-        'Please specify the chapters.';
-    }
-
-    return;
-  }
-
-  // -----------------------------
-  // Card count
-  // -----------------------------
-
-  const count =
-    Number(
-      document.querySelector('#aiFlashcardCount')?.value || 20
-    );
-
-  console.log('Count:', count);
-
-  if (
-    !Number.isInteger(count) ||
-    count < 1 ||
-    count > 200
-  ) {
-
-    if (status) {
-      status.textContent =
-        'Please enter between 1 and 200 flashcards.';
-    }
-
-    return;
-  }
-
-  // -----------------------------
-  // Difficulty
-  // -----------------------------
-
-  const difficulty =
-    document.querySelector('#aiFlashcardDifficulty')?.value ||
-    'medium';
-
-  console.log('Difficulty:', difficulty);
-
-  // -----------------------------
-  // Instructions
-  // -----------------------------
-
-  const instructions =
-    document
-      .querySelector('#aiFlashcardInstructions')
-      ?.value
-      .trim() || '';
-
-  console.log('Instructions:', instructions);
-
-  console.log('Status element:', status);
-  console.log('Button:', button);
-
-  // -----------------------------
-  // Loading state
-  // -----------------------------
-
-  if (button) {
-    button.disabled = true;
-    button.innerHTML = '⏳ Generating...';
-  }
-
-  if (status) {
-    status.textContent =
-      'Preparing your flashcards...';
-  }
-
-  // -----------------------------
-  // Send request to backend
-  // -----------------------------
-
-  try {
-
-    console.log('Sending request to AI backend...');
-
-    const response = await fetch(
-      AI_FLASHCARD_API.baseURL +
-      AI_FLASHCARD_API.generateEndpoint,
-      {
-        method: 'POST',
-
-        headers: {
-          'Content-Type': 'application/json'
-        },
-
-        body: JSON.stringify({
-
-          driveUrl,
-
-          chapters,
-
-          cardCount: count,
-
-          difficulty,
-
-          instructions
-
-        })
-      }
-    );
-
-    console.log(
-      'Backend response:',
-      response.status
-    );
-
-    // -----------------------------
-    // Handle server error
-    // -----------------------------
-
-    if (!response.ok) {
-
-      let message =
-        `Server error (${response.status})`;
-
-      try {
-
-        const errorData =
-          await response.json();
-
-        if (errorData?.error) {
-          message = errorData.error;
-        }
-
-      } catch (_) {}
-
-      throw new Error(message);
-    }
-
-    // -----------------------------
-    // Parse response
-    // -----------------------------
-
-    const result =
-      await response.json();
-
-    console.log(
-      'AI result:',
-      result
-    );
-
-    // -----------------------------
-    // Validate AI response
-    // -----------------------------
-
-    if (
-      !result ||
-      !Array.isArray(result.cards)
-    ) {
-
-      throw new Error(
-        'The AI returned an invalid flashcard response.'
-      );
-    }
-
-    // -----------------------------
-    // Success
-    // -----------------------------
-
-    if (status) {
-
-      status.textContent =
-        `${result.cards.length} flashcards generated.`;
-
-    }
-
-    // -----------------------------
-    // Show preview
-    // -----------------------------
-
-    showAIGeneratedFlashcardPreview(
-      result,
-      {
-        title:
-          result.title ||
-          book.title ||
-          'AI Generated Flashcards',
-
-        url:
-          driveUrl
-      }
-    );
-
-  } catch (error) {
-
-    console.error(
-      'AI flashcard generation failed:',
-      error
-    );
-
-    if (status) {
-
-      status.textContent =
-        error.message ||
-        'Failed to generate flashcards.';
-
-    }
-
-  } finally {
-
-    if (button) {
-
-      button.disabled = false;
-
-      button.innerHTML =
-        '✨ Generate Flashcards';
-
-    }
-
-  }
-}
-
-function aiFlashcardMakerView() {
-  return `
-    <section class="ai-flashcard-maker">
-
-      ${pageTitle(
-        'AI Flashcard Maker',
-        'Create flashcards automatically from a Google Drive PDF.'
-      )}
-
-      <div class="card ai-flashcard-panel">
-
-        <div class="ai-flashcard-field">
-          <label>Select PDF</label>
-
-          <div class="ai-pdf-search">
-            <span class="search-icon">⌕</span>
-
-            <input
-              type="text"
-              id="aiFlashcardBookSearch"
-              class="input"
-              placeholder="Search your PDFs..."
-              autocomplete="off"
-            >
-          </div>
-
-          <select id="aiFlashcardBook" class="input">
-            <option value="">Choose a PDF from your Library...</option>
-
-            ${(data.books || []).map(book => `
-              <option
-                value="${esc(book.id)}"
-                data-title="${esc((book.title || '').toLowerCase())}">
-                ${esc(book.title)}
-              </option>
-            `).join('')}
-          </select>
-
-          <small class="ai-flashcard-help">
-            Select a PDF from your Library.
-          </small>
-        </div>
-
-        <div class="ai-flashcard-field">
-          <label>Chapters</label>
-
-          <input
-            type="text"
-            id="aiFlashcardChapters"
-            class="input"
-            placeholder="Example: Chapters 2, 3 and 4">
-        </div>
-
-        <div class="ai-flashcard-row">
-
-          <div class="ai-flashcard-field">
-            <label>Number of cards</label>
-
-            <input
-              type="number"
-              id="aiFlashcardCount"
-              class="input"
-              value="20"
-              min="1"
-              max="100">
-          </div>
-
-          <div class="ai-flashcard-field">
-            <label>Difficulty</label>
-
-            <select id="aiFlashcardDifficulty" class="input">
-              <option value="easy">Easy</option>
-              <option value="medium" selected>Medium</option>
-              <option value="hard">Hard</option>
-            </select>
-          </div>
-
-        </div>
-
-        <div class="ai-flashcard-field">
-          <label>Additional instructions</label>
-
-          <textarea
-            id="aiFlashcardInstructions"
-            class="input"
-            rows="4"
-            placeholder="Example: Focus on formulas, definitions and important concepts.">
-          </textarea>
-        </div>
-
-        <div class="ai-flashcard-actions">
-
-          <button
-            type="button"
-            class="btn"
-            data-action="back-to-flashcards">
-            Cancel
-          </button>
-
-          <button
-            type="button"
-            class="btn primary"
-            data-action="generate-ai-flashcards">
-            ✨ Generate Flashcards
-          </button>
-
-        </div>
-
-        <div id="aiFlashcardStatus" class="ai-flashcard-status"></div>
-
-      </div>
-
-    </section>
-  `;
-}
-
-function setupAIFlashcardBookSearch() {
-  const searchInput = document.querySelector('#aiFlashcardBookSearch');
-  const bookSelect = document.querySelector('#aiFlashcardBook');
-
-  if (!searchInput || !bookSelect) {
-    console.warn('AI PDF search elements not found');
-    return;
-  }
-
-  console.log('AI PDF search initialized');
-
-  // Keep a copy of all books
-  const books = Array.isArray(data.books)
-    ? [...data.books]
-    : [];
-
-  function renderBookOptions(query = '') {
-    const selectedId = bookSelect.value;
-    const search = query.trim().toLowerCase();
-
-    const filteredBooks = books.filter(book => {
-      const title = (book.title || '').toLowerCase();
-      const author = (book.author || '').toLowerCase();
-      const course = (book.course || '').toLowerCase();
-
-      return (
-        !search ||
-        title.includes(search) ||
-        author.includes(search) ||
-        course.includes(search)
-      );
-    });
-
-    bookSelect.innerHTML = `
-      <option value="">
-        ${
-          search
-            ? `Found ${filteredBooks.length} PDF${filteredBooks.length === 1 ? '' : 's'}`
-            : 'Choose a PDF from your Library...'
-        }
-      </option>
-
-      ${filteredBooks.map(book => `
-        <option value="${esc(book.id)}">
-          ${esc(book.title || 'Untitled PDF')}
-        </option>
-      `).join('')}
-    `;
-
-    // Restore selection if it still exists
-    if (
-      selectedId &&
-      filteredBooks.some(book => book.id === selectedId)
-    ) {
-      bookSelect.value = selectedId;
-    }
-  }
-
-  searchInput.addEventListener('input', () => {
-    renderBookOptions(searchInput.value);
-  });
-
-  // Initial render
-  renderBookOptions();
-
-  console.log(
-    `AI PDF search loaded ${books.length} PDFs`
-  );
-}
-
-function showAIGeneratedFlashcardPreview(result, book) {
-
-  const cards =
-    Array.isArray(result.cards)
-      ? result.cards
-      : [];
-
-
-  const modal =
-    document.createElement('div');
-
-  modal.className =
-    'modal-overlay ai-flashcard-modal';
-
-
-  modal.innerHTML = `
-    <div class="modal-card ai-flashcard-preview">
-
-      <div class="modal-header">
-
-        <div>
-
-          <h2>✨ Generated Flashcards</h2>
-
-          <p>
-            ${escapeHTML(
-              result.title ||
-              book.title ||
-              'AI Flashcards'
-            )}
-          </p>
-
-        </div>
-
-        <button
-          type="button"
-          class="icon-btn"
-          data-preview-action="close">
-          ×
-        </button>
-
-      </div>
-
-
-      <div class="ai-generated-count">
-
-        ${cards.length}
-        flashcards generated
-
-      </div>
-
-
-      <div class="ai-preview-list">
-
-        ${cards.map((card, index) => {
-
-          const question =
-            Array.isArray(card)
-              ? card[0]
-              : card.question;
-
-          const answer =
-            Array.isArray(card)
-              ? card[1]
-              : card.answer;
-
-          return `
-
-            <div
-              class="ai-preview-card"
-              data-card-index="${index}">
-
-              <div class="ai-preview-number">
-                ${index + 1}
-              </div>
-
-              <div class="ai-preview-content">
-
-                <input
-                  class="ai-preview-question"
-                  value="${escapeAttribute(
-                    question || ''
-                  )}">
-
-                <textarea
-                  class="ai-preview-answer"
-                  rows="3">${escapeHTML(
-                    answer || ''
-                  )}</textarea>
-
-              </div>
-
-            </div>
-
-          `;
-
-        }).join('')}
-
-      </div>
-
-
-      <div class="modal-footer">
-
-        <button
-          type="button"
-          class="btn"
-          data-preview-action="close">
-          Cancel
-        </button>
-
-        <button
-          type="button"
-          class="btn primary"
-          data-preview-action="save">
-          💾 Save as Study Set
-        </button>
-
-      </div>
-
-    </div>
-  `;
-
-
-  document.body.appendChild(modal);
-
-
-  modal.querySelectorAll(
-    '[data-preview-action="close"]'
-  ).forEach(button => {
-
-    button.addEventListener(
-      'click',
-      () => modal.remove()
-    );
-
-  });
-
-
-  modal.querySelector(
-    '[data-preview-action="save"]'
-  ).addEventListener(
-    'click',
-    () => saveAIGeneratedSet(
-      modal,
-      result,
-      book
-    )
-  );
-
-}
-
-function saveAIGeneratedSet(modal, result, book) {
-
-  const cards = [];
-
-  modal.querySelectorAll(
-    '.ai-preview-card'
-  ).forEach(card => {
-
-    const question =
-      card.querySelector(
-        '.ai-preview-question'
-      )?.value.trim();
-
-    const answer =
-      card.querySelector(
-        '.ai-preview-answer'
-      )?.value.trim();
-
-    if (question && answer) {
-
-      cards.push([
-        question,
-        answer
-      ]);
-
-    }
-
-  });
-
-
-  if (!cards.length) {
-
-    alert(
-      'There are no valid flashcards to save.'
-    );
-
-    return;
-
-  }
-
-
-  const newSet = {
-
-    id:
-      'ai-' +
-      Date.now() +
-      '-' +
-      Math.random()
-        .toString(36)
-        .slice(2, 8),
-
-    title:
-      result.title ||
-      `${book.title} — AI Flashcards`,
-
-    subject:
-      result.subject ||
-      'AI Generated',
-
-    description:
-      result.description ||
-      `AI-generated flashcards from ${book.title}.`,
-
-    cards
-
-  };
-
-
-  if (!Array.isArray(data.sets)) {
-    data.sets = [];
-  }
-
-
-  data.sets.push(newSet);
-
-
-  save();
-
-
-  modal.remove();
-
-
-  route = 'sets';
-
-  render();
-
-
-  alert(
-    `${cards.length} flashcards saved as an editable study set.`
-  );
-
-}
 /* ---------- event binding (delegated — works for modals too) ---------- */
 function action(a, id, index, el) {
   if (a === 'search-go') {
@@ -3219,17 +2464,17 @@ function action(a, id, index, el) {
     window.open(book.driveUrl, '_blank');
     return;
   }
-    if (a === 'download-book') {
-      const book = data.books?.find(
-        b => b.id === id
-      );
+  if (action === 'download-book') {
+    const book = data.books.find(
+        b => b.id === element.dataset.id
+    );
 
-      if (book) {
+    if (book) {
         downloadBook(book);
-      }
-
-      return;
     }
+
+    return;
+ }
   if (a === 'delete-book') {
     const book = data.books?.find(
       b => b.id === id
@@ -3808,25 +3053,6 @@ if (a === 'prev-builtin-card') {
 
   return render();
 }
-if (a === 'open-ai-flashcard-maker') {
-  route = 'ai-flashcard-maker';
-  render();
-
-  setTimeout(() => {
-    setupAIFlashcardBookSearch();
-  }, 0);
-
-  window.scrollTo(0, 0);
-  return;
-}
-if (a === 'back-to-flashcards') {
-  route = 'flashcards';
-  render();
-  return;
-}
-if (a === 'generate-ai-flashcards') {
-  return generateAIFlashcards();
-}
 }
 
 /* ---------- timer ---------- */
@@ -4213,7 +3439,7 @@ function renderStudyGoal() {
         </button>
       </div>
 
-      <p style="color:var(--muted);font-size:var(--font-small);margin-bottom:8px;">
+      <p style="color:var(--muted);font-size:var(--font-small);">
         Keep your streak going!
       </p>
 
@@ -4230,7 +3456,7 @@ function renderStudyGoal() {
         display:flex;
         justify-content:space-between;
         color:var(--muted);
-        font-size:10px;
+        font-size:var(--font-small);
       ">
         ${goal.days.map(day => `
           <span>
