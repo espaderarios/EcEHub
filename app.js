@@ -6,6 +6,21 @@ const AI_FLASHCARD_API = {
   generateEndpoint: '/api/ai/flashcards/generate'
 };
 
+// ============================================================
+// EcE Hub Community API
+// ============================================================
+
+const COMMUNITY_API_BASE =
+  'https://ecehub-community.ecehub-ai-backend.workers.dev';
+
+const COMMUNITY_API = {
+  session: `${COMMUNITY_API_BASE}/api/auth/session`,
+  profile: `${COMMUNITY_API_BASE}/api/users/me`,
+  usernameCheck: `${COMMUNITY_API_BASE}/api/users/check-username`,
+  flashcards: `${COMMUNITY_API_BASE}/api/flashcards`,
+  workspace: `${COMMUNITY_API_BASE}/api/workspace`
+};
+
 window.AIassistant = {
   Available: false
 };
@@ -312,6 +327,8 @@ const BUILTIN_FLASHCARDS = [
   }
 ];
 
+let communityUser = null;
+let communityReady = false;
 let sourceBooks = [];
 let libraryFolderId = null;
 let data = load();
@@ -323,6 +340,129 @@ let timerSeconds = 25 * 60;
 
 window.builtinStudyState = null;
 /* ---------- persistence & helpers ---------- */
+function isGoogleLinked() {
+  return !!(
+    communityUser &&
+    communityUser.googleSub
+  );
+}
+
+function isGuestUser() {
+  return !isGoogleLinked();
+}
+
+function getUserIdentityLabel() {
+  if (isGoogleLinked()) {
+    return 'Google account linked';
+  }
+
+  return 'Guest account';
+}
+
+function normalizeCommunityUser(user) {
+  if (!user) return null;
+
+  return {
+    ...user,
+
+    googleSub:
+      user.googleSub ||
+      user.google_sub ||
+      null,
+
+    googleEmail:
+      user.googleEmail ||
+      user.google_email ||
+      null,
+
+    googleEmailVerified:
+      Boolean(
+        user.googleEmailVerified ??
+        user.google_email_verified ??
+        false
+      )
+  };
+}
+
+function linkGoogleAccount() {
+  if (!communityUser) {
+    toast('Your guest session is still loading.');
+    return;
+  }
+
+  if (isGoogleLinked()) {
+    toast('Your Google account is already linked.');
+    return;
+  }
+
+  const confirmed = confirm(
+    'Link your Google account to EcE Hub?\n\n' +
+    'Your current guest account will be kept. ' +
+    'Your progress and saved flashcards will remain associated with this account.'
+  );
+
+  if (!confirmed) return;
+
+  window.location.href =
+    `${COMMUNITY_API_BASE}/api/auth/google/start`;
+}
+
+function handleGoogleLinkCallback() {
+  const url = new URL(window.location.href);
+
+  const linked =
+    url.searchParams.get('community_google_linked');
+
+  const error =
+    url.searchParams.get('community_google_error');
+
+  if (linked === '1') {
+    toast('Google account linked successfully.');
+
+    url.searchParams.delete('community_google_linked');
+
+    window.history.replaceState(
+      {},
+      document.title,
+      url.pathname +
+        (url.searchParams.toString()
+          ? `?${url.searchParams.toString()}`
+          : '') +
+        url.hash
+    );
+
+    return true;
+  }
+
+  if (error) {
+    console.error(
+      'Google linking failed:',
+      error
+    );
+
+    toast(
+      `Google account linking failed: ${error}`
+    );
+
+    url.searchParams.delete(
+      'community_google_error'
+    );
+
+    window.history.replaceState(
+      {},
+      document.title,
+      url.pathname +
+        (url.searchParams.toString()
+          ? `?${url.searchParams.toString()}`
+          : '') +
+        url.hash
+    );
+
+    return false;
+  }
+
+  return false;
+}
 
 function load() {
   try {
@@ -1831,13 +1971,243 @@ function toolsView() {
 }
 
 function profileView() {
+  const user = communityUser;
+
+  if (!user) {
+    return (
+      pageTitle(
+        'Profile',
+        'Your EcE Hub account information.'
+      ) +
+      `
+        <div class="card">
+          <h2>Loading profile...</h2>
+
+          <p style="color:var(--muted)">
+            Connecting to your EcE Hub account.
+          </p>
+        </div>
+      `
+    );
+  }
+
+  const displayName =
+    user.displayName ||
+    user.username ||
+    'Student';
+
+  const initial =
+    displayName
+      .trim()
+      .charAt(0)
+      .toUpperCase() || 'S';
+
+  const googleLinked =
+    isGoogleLinked();
+
   return (
-    pageTitle('Profile', 'Your EcE Hub account information.') +
-    `<div class="card">
-      <h2>${esc(data.profile.name)}</h2>
-      <p style="color:var(--muted)">${esc(data.profile.course)}</p>
-      <button class="btn primary" data-action="edit-profile">Edit profile</button>
-    </div>`
+    pageTitle(
+      'Profile',
+      'Manage your EcE Hub account.'
+    ) +
+
+    `
+      <div class="card">
+
+        <!-- PROFILE HEADER -->
+
+        <div style="
+          display:flex;
+          align-items:center;
+          gap:18px;
+          margin-bottom:24px;
+        ">
+
+          <div style="
+            width:76px;
+            height:76px;
+            border-radius:50%;
+            overflow:hidden;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            background:var(--primary);
+            color:white;
+            font-size:30px;
+            font-weight:700;
+          ">
+            ${
+              user.avatarUrl
+                ? `
+                  <img
+                    src="${esc(user.avatarUrl)}"
+                    alt=""
+                    style="
+                      width:100%;
+                      height:100%;
+                      object-fit:cover;
+                    "
+                  >
+                `
+                : esc(initial)
+            }
+          </div>
+
+          <div>
+
+            <h2 style="margin:0;">
+              ${esc(displayName)}
+            </h2>
+
+            <div style="
+              color:var(--muted);
+              margin-top:4px;
+            ">
+              @${esc(user.username || 'guest')}
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- ACCOUNT STATUS -->
+
+        <div style="
+          padding:16px;
+          border-radius:12px;
+          background:var(--surface-2, rgba(127,127,127,.08));
+          margin-bottom:20px;
+        ">
+
+          <div style="
+            font-weight:700;
+            margin-bottom:6px;
+          ">
+            Account
+          </div>
+
+          ${
+            googleLinked
+              ? `
+                <div style="
+                  color:#16a34a;
+                  font-weight:600;
+                ">
+                  ✓ Google account linked
+                </div>
+
+                ${
+                  user.googleEmail
+                    ? `
+                      <div style="
+                        color:var(--muted);
+                        margin-top:5px;
+                      ">
+                        ${esc(user.googleEmail)}
+                      </div>
+                    `
+                    : ''
+                }
+
+                <p style="
+                  color:var(--muted);
+                  margin:8px 0 0;
+                  font-size:13px;
+                ">
+                  Your EcE Hub account can now be used
+                  for cloud synchronization.
+                </p>
+              `
+              : `
+                <div style="
+                  font-weight:600;
+                ">
+                  Guest account
+                </div>
+
+                <p style="
+                  color:var(--muted);
+                  margin:6px 0 0;
+                  font-size:13px;
+                  line-height:1.5;
+                ">
+                  You can use EcE Hub without linking
+                  Google. Your study progress remains
+                  stored locally until you choose to link
+                  your account.
+                </p>
+              `
+          }
+
+        </div>
+
+        <!-- ACCOUNT INFORMATION -->
+
+        <div style="
+          display:grid;
+          gap:10px;
+          margin-bottom:22px;
+        ">
+
+          <div>
+            Username:
+            <strong>
+              @${esc(user.username || 'guest')}
+            </strong>
+          </div>
+
+          <div>
+            Display name:
+            <strong>
+              ${esc(displayName)}
+            </strong>
+          </div>
+
+          <div>
+            User ID:
+            <span style="color:var(--muted);">
+              ${
+                googleLinked
+                  ? esc(user.id)
+                  : 'guest'
+              }
+            </span>
+          </div>
+
+        </div>
+
+        <!-- ACTIONS -->
+
+        <div style="
+          display:flex;
+          flex-wrap:wrap;
+          gap:10px;
+        ">
+
+          <button
+            class="btn primary"
+            data-action="edit-profile"
+          >
+            Edit profile
+          </button>
+
+          ${
+            !googleLinked
+              ? `
+                <button
+                  class="btn"
+                  data-action="link-google"
+                >
+                  Link Google account
+                </button>
+              `
+              : ''
+          }
+
+        </div>
+
+      </div>
+    `
   );
 }
 
@@ -3358,6 +3728,815 @@ function showAIAssistantUnavailable() {
   console.log('AI unavailable modal added to DOM');
 }
 
+async function communityFetch(path, options = {}) {
+  const url = `${COMMUNITY_API_BASE}${path}`;
+
+  const response = await fetch(url, {
+    credentials: 'include',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {})
+    }
+  });
+
+  let data = null;
+
+  try {
+    data = await response.json();
+  } catch {
+    data = {};
+  }
+
+  if (!response.ok) {
+    const error = new Error(
+      data?.error || `Community API request failed (${response.status}).`
+    );
+
+    error.status = response.status;
+    error.data = data;
+
+    throw error;
+  }
+
+  return data;
+}
+
+async function initializeCommunitySession() {
+  try {
+    const data = await communityFetch('/api/auth/session', {
+      method: 'POST'
+    });
+
+    if (!data?.user) {
+      throw new Error('Community session response did not contain a user.');
+    }
+
+    communityUser = normalizeCommunityUser(data.user);
+
+    console.log('Community session initialized:', communityUser);
+
+    return communityUser;
+  } catch (err) {
+    console.error('Failed to initialize community session:', err);
+
+    communityUser = null;
+
+    return null;
+  }
+}
+
+function updateCommunityUserUI() {
+  const profileButtons = document.querySelectorAll(
+    '[data-action="open-profile"], [data-action="edit-profile"], .profile-button, .user-avatar'
+  );
+
+  profileButtons.forEach(button => {
+    if (!communityUser) return;
+
+    const displayName =
+      communityUser.displayName ||
+      communityUser.username ||
+      'EcE Hub User';
+
+    const username = communityUser.username || '';
+
+    button.setAttribute(
+      'aria-label',
+      `Edit profile: ${displayName}${username ? ` (@${username})` : ''}`
+    );
+
+    if (communityUser.avatarUrl) {
+      button.style.backgroundImage = `url("${communityUser.avatarUrl}")`;
+      button.style.backgroundSize = 'cover';
+      button.style.backgroundPosition = 'center';
+      button.classList.add('has-avatar');
+    }
+  });
+}
+
+async function getMyProfile() {
+  const result = await communityFetch(COMMUNITY_API.profile);
+
+  communityUser =
+    normalizeCommunityUser(result.user);
+
+  updateCommunityUserUI();
+
+  return communityUser;
+}
+
+async function updateMyProfile(profile) {
+  const result = await communityFetch(
+    COMMUNITY_API.profile,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(profile)
+    }
+  );
+
+  communityUser =
+    normalizeCommunityUser(result.user);
+
+  updateCommunityUserUI();
+
+  return communityUser;
+}
+
+async function checkUsernameAvailability(username) {
+  const value = String(username || '').trim();
+
+  if (!value) {
+    return {
+      available: false,
+      reason: 'invalid'
+    };
+  }
+
+  const url =
+    `${COMMUNITY_API.usernameCheck}?username=` +
+    encodeURIComponent(value);
+
+  return communityFetch(url);
+}
+
+async function getCommunityFlashcards({
+  query = '',
+  subject = '',
+  limit = 20
+} = {}) {
+  const params = new URLSearchParams();
+
+  if (query.trim()) {
+    params.set('q', query.trim());
+  }
+
+  if (subject.trim()) {
+    params.set('subject', subject.trim());
+  }
+
+  params.set('limit', String(Math.min(50, Math.max(1, limit))));
+
+  const url = `${COMMUNITY_API.flashcards}?${params.toString()}`;
+
+  const result = await communityFetch(url);
+
+  return result.sets || [];
+}
+
+async function getFlashcardSet(setId) {
+  if (!setId) {
+    throw new Error('Flashcard set ID is required.');
+  }
+
+  const result = await communityFetch(
+    `${COMMUNITY_API.flashcards}/${encodeURIComponent(setId)}`
+  );
+
+  return result.set || null;
+}
+
+async function createFlashcardSet({
+  title,
+  subject = '',
+  description = '',
+  visibility = 'public',
+  cards
+}) {
+  const result = await communityFetch(COMMUNITY_API.flashcards, {
+    method: 'POST',
+    body: JSON.stringify({
+      title,
+      subject,
+      description,
+      visibility,
+      cards
+    })
+  });
+
+  return result.set;
+}
+
+async function updateFlashcardSet(setId, data) {
+  if (!setId) {
+    throw new Error('Flashcard set ID is required.');
+  }
+
+  const result = await communityFetch(
+    `${COMMUNITY_API.flashcards}/${encodeURIComponent(setId)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    }
+  );
+
+  return result.set;
+}
+
+async function deleteFlashcardSet(setId) {
+  if (!setId) {
+    throw new Error('Flashcard set ID is required.');
+  }
+
+  return communityFetch(
+    `${COMMUNITY_API.flashcards}/${encodeURIComponent(setId)}`,
+    {
+      method: 'DELETE'
+    }
+  );
+}
+
+async function getWorkspaceSets() {
+  const result = await communityFetch(COMMUNITY_API.workspace);
+  return result.sets || [];
+}
+
+async function addFlashcardSetToWorkspace(setId) {
+  if (!setId) {
+    throw new Error('Flashcard set ID is required.');
+  }
+
+  return communityFetch(
+    `${COMMUNITY_API.workspace}/${encodeURIComponent(setId)}`,
+    {
+      method: 'POST'
+    }
+  );
+}
+
+async function removeFlashcardSetFromWorkspace(setId) {
+  if (!setId) {
+    throw new Error('Flashcard set ID is required.');
+  }
+
+  return communityFetch(
+    `${COMMUNITY_API.workspace}/${encodeURIComponent(setId)}`,
+    {
+      method: 'DELETE'
+    }
+  );
+}
+
+function communityProfileAvatar() {
+  if (!communityUser) {
+    return `<span class="profile-avatar-fallback">?</span>`;
+  }
+
+  const name =
+    communityUser.displayName ||
+    communityUser.username ||
+    '?';
+
+  const initial = name.trim().charAt(0).toUpperCase();
+
+  if (communityUser.avatarUrl) {
+    return `
+      <img
+        src="${esc(communityUser.avatarUrl)}"
+        alt="${esc(name)}"
+        onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
+      >
+      <span
+        class="profile-avatar-fallback"
+        style="display:none"
+      >${esc(initial)}</span>
+    `;
+  }
+
+  return `
+    <span class="profile-avatar-fallback">
+      ${esc(initial)}
+    </span>
+  `;
+}
+
+async function openCommunityProfileModal() {
+  try {
+    // Make sure the Cloudflare community session exists.
+    if (!communityUser) {
+      console.log('Community user missing, initializing session...');
+      await initializeCommunitySession();
+    }
+
+    if (!communityUser) {
+      console.error('Community profile still unavailable after session initialization.');
+      showToast?.('Unable to load your community profile.', 'error');
+      return;
+    }
+
+    const user = communityUser;
+
+    const existing = document.getElementById('community-profile-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+
+    modal.id = 'community-profile-modal';
+    modal.className = 'modal-backdrop';
+
+    modal.innerHTML = `
+      <div class="modal-card" style="max-width:560px;width:calc(100% - 32px);">
+        <div class="modal-header">
+          <div>
+            <h2>Edit profile</h2>
+            <p style="color:var(--muted);margin:4px 0 0;">
+              Your community identity and flashcard author profile.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            class="icon-btn"
+            data-action="close-community-profile-modal"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:16px;margin:20px 0;">
+          <div
+            style="
+              width:72px;
+              height:72px;
+              border-radius:50%;
+              display:flex;
+              align-items:center;
+              justify-content:center;
+              background:var(--primary);
+              color:white;
+              font-size:28px;
+              font-weight:700;
+              overflow:hidden;
+            "
+          >
+            ${
+              user.avatarUrl
+                ? `<img src="${esc(user.avatarUrl)}"
+                     alt=""
+                     style="width:100%;height:100%;object-fit:cover;">`
+                : esc((user.displayName || user.username || 'U').charAt(0).toUpperCase())
+            }
+          </div>
+
+          <div>
+            <strong style="font-size:18px;">
+              ${esc(user.displayName || user.username)}
+            </strong>
+
+            <div style="color:var(--muted);">
+              @${esc(user.username)}
+            </div>
+          </div>
+        </div>
+
+        <form id="community-profile-form">
+
+          <label class="field">
+            <span>Username</span>
+
+            <input
+              id="community-profile-username"
+              name="username"
+              type="text"
+              maxlength="24"
+              minlength="3"
+              pattern="[A-Za-z0-9_]{3,24}"
+              value="${esc(user.username || '')}"
+              autocomplete="off"
+              required
+            >
+
+            <small id="community-username-status"
+              style="display:block;margin-top:6px;color:var(--muted);">
+              3–24 letters, numbers, or underscores.
+            </small>
+          </label>
+
+          <label class="field">
+            <span>Display name</span>
+
+            <input
+              name="displayName"
+              type="text"
+              maxlength="80"
+              value="${esc(user.displayName || '')}"
+            >
+          </label>
+
+          <label class="field">
+            <span>Avatar URL</span>
+
+            <input
+              name="avatarUrl"
+              type="url"
+              maxlength="500"
+              value="${esc(user.avatarUrl || '')}"
+              placeholder="https://..."
+            >
+          </label>
+
+          <label class="field">
+            <span>Bio</span>
+
+            <textarea
+              name="bio"
+              maxlength="500"
+              rows="4"
+              placeholder="Tell other EcE Hub users a little about yourself."
+            >${esc(user.bio || '')}</textarea>
+          </label>
+
+          <div
+            id="community-profile-error"
+            style="
+              display:none;
+              margin-top:12px;
+              padding:10px 12px;
+              border-radius:8px;
+              background:rgba(220,38,38,.1);
+              color:#dc2626;
+            "
+          ></div>
+
+          <div
+            style="
+              display:flex;
+              justify-content:flex-end;
+              gap:10px;
+              margin-top:20px;
+            "
+          >
+            <button
+              type="button"
+              class="btn"
+              data-action="close-community-profile-modal"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              class="btn primary"
+              id="save-community-profile"
+            >
+              Save profile
+            </button>
+          </div>
+
+        </form>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const form = document.getElementById('community-profile-form');
+    const usernameInput = document.getElementById('community-profile-username');
+    const usernameStatus = document.getElementById('community-username-status');
+    const errorBox = document.getElementById('community-profile-error');
+    const saveButton = document.getElementById('save-community-profile');
+
+    let usernameCheckTimer = null;
+
+    usernameInput.addEventListener('input', () => {
+      clearTimeout(usernameCheckTimer);
+
+      const username = usernameInput.value.trim();
+
+      usernameStatus.textContent =
+        'Checking username...';
+
+      usernameStatus.style.color = 'var(--muted)';
+
+      usernameCheckTimer = setTimeout(async () => {
+        try {
+          const result = await communityFetch(
+            `/api/users/check-username?username=${encodeURIComponent(username)}`
+          );
+
+          if (username !== usernameInput.value.trim()) return;
+
+          if (result.available) {
+            usernameStatus.textContent = 'Username is available.';
+            usernameStatus.style.color = '#16a34a';
+          } else {
+            usernameStatus.textContent =
+              result.reason === 'invalid'
+                ? 'Username must be 3–24 letters, numbers, or underscores.'
+                : 'That username is already taken.';
+
+            usernameStatus.style.color = '#dc2626';
+          }
+        } catch (error) {
+          usernameStatus.textContent =
+            'Unable to check username right now.';
+
+          usernameStatus.style.color = '#dc2626';
+        }
+      }, 350);
+    });
+
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+
+      errorBox.style.display = 'none';
+      saveButton.disabled = true;
+      saveButton.textContent = 'Saving...';
+
+      const formData = new FormData(form);
+
+      const payload = {
+        username: String(formData.get('username') || '').trim(),
+        displayName: String(formData.get('displayName') || '').trim(),
+        avatarUrl: String(formData.get('avatarUrl') || '').trim(),
+        bio: String(formData.get('bio') || '').trim()
+      };
+
+      try {
+        const result = await communityFetch('/api/users/me', {
+          method: 'PATCH',
+          body: JSON.stringify(payload)
+        });
+
+        communityUser = result.user;
+
+        updateCommunityHeader();
+
+        modal.remove();
+
+        render();
+
+        updateCommunityUserUI?.();
+
+        showToast?.('Profile updated successfully.', 'success');
+
+      } catch (error) {
+        console.error('Failed to update community profile:', error);
+
+        errorBox.textContent =
+          error?.data?.error ||
+          error?.message ||
+          'Failed to update your profile.';
+
+        errorBox.style.display = 'block';
+
+        saveButton.disabled = false;
+        saveButton.textContent = 'Save profile';
+      }
+    });
+
+    // Close when clicking outside the card.
+    modal.addEventListener('click', event => {
+      if (event.target === modal) {
+        modal.remove();
+      }
+    });
+
+  } catch (error) {
+    console.error('Failed to open community profile:', error);
+    showToast?.('Unable to open your profile.', 'error');
+  }
+}
+
+function setupCommunityProfileForm(modal) {
+  const form = modal.querySelector('#community-profile-form');
+  const usernameInput =
+    modal.querySelector('#community-profile-username');
+
+  const usernameStatus =
+    modal.querySelector('#community-username-status');
+
+  const errorBox =
+    modal.querySelector('#community-profile-error');
+
+  const saveButton =
+    modal.querySelector('#community-profile-save');
+
+  let usernameAvailable = true;
+  let usernameTimer = null;
+
+  async function checkUsername() {
+    const username = usernameInput.value.trim();
+
+    if (!/^[A-Za-z0-9_]{3,24}$/.test(username)) {
+      usernameAvailable = false;
+
+      usernameStatus.textContent =
+        'Username must be 3–24 letters, numbers, or underscores.';
+
+      return false;
+    }
+
+    if (
+      communityUser &&
+      username.toLowerCase() ===
+        communityUser.username.toLowerCase()
+    ) {
+      usernameAvailable = true;
+
+      usernameStatus.textContent =
+        'This is your current username.';
+
+      return true;
+    }
+
+    usernameStatus.textContent = 'Checking username...';
+
+    try {
+      const result = await communityFetch(
+        `/api/users/check-username?username=${encodeURIComponent(username)}`
+      );
+
+      usernameAvailable = result.available === true;
+
+      usernameStatus.textContent = usernameAvailable
+        ? 'Username is available.'
+        : 'That username is already taken.';
+
+      return usernameAvailable;
+    } catch (error) {
+      console.error(
+        'Username availability check failed:',
+        error
+      );
+
+      usernameAvailable = false;
+
+      usernameStatus.textContent =
+        'Unable to check username right now.';
+
+      return false;
+    }
+  }
+
+  usernameInput.addEventListener('input', () => {
+    clearTimeout(usernameTimer);
+
+    usernameAvailable = false;
+
+    usernameStatus.textContent =
+      'Checking username...';
+
+    usernameTimer = setTimeout(() => {
+      checkUsername();
+    }, 350);
+  });
+
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+
+    errorBox.hidden = true;
+    errorBox.textContent = '';
+
+    const validUsername = await checkUsername();
+
+    if (!validUsername) {
+      errorBox.textContent =
+        'Please choose an available username.';
+
+      errorBox.hidden = false;
+      return;
+    }
+
+    const payload = {
+      username: usernameInput.value.trim(),
+
+      displayName:
+        modal
+          .querySelector('#community-profile-display-name')
+          .value
+          .trim(),
+
+      avatarUrl:
+        modal
+          .querySelector('#community-profile-avatar')
+          .value
+          .trim(),
+
+      bio:
+        modal
+          .querySelector('#community-profile-bio')
+          .value
+          .trim()
+    };
+
+    saveButton.disabled = true;
+    saveButton.textContent = 'Saving...';
+
+    try {
+      const result = await communityFetch('/api/users/me', {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      });
+
+      if (!result?.user) {
+        throw new Error(
+          'The server did not return the updated profile.'
+        );
+      }
+
+      communityUser = result.user;
+
+      console.log(
+        'Community profile updated:',
+        communityUser
+      );
+      updateCommunityHeader();
+      closeCommunityProfileModal();
+
+      if (typeof renderCommunityUser === 'function') {
+        renderCommunityUser(communityUser);
+      }
+
+      if (typeof render === 'function') {
+        render();
+      }
+
+    } catch (error) {
+      console.error(
+        'Community profile update failed:',
+        error
+      );
+
+      errorBox.textContent =
+        error?.data?.error ||
+        error?.message ||
+        'Could not update your profile.';
+
+      errorBox.hidden = false;
+
+      saveButton.disabled = false;
+      saveButton.textContent = 'Save Profile';
+    }
+  });
+}
+
+function closeCommunityProfileModal() {
+  const modal =
+    document.getElementById('community-profile-modal');
+
+  if (!modal) return;
+
+  modal.classList.remove('open');
+
+  setTimeout(() => {
+    modal.remove();
+  }, 180);
+}
+
+function updateCommunityHeader() {
+  const nameElement =
+    document.getElementById('headerName');
+
+  const usernameElement =
+    document.getElementById('headerUsername');
+
+  const avatarElement =
+    document.getElementById('headerAvatar');
+
+  if (!nameElement || !avatarElement) {
+    return;
+  }
+
+  const displayName =
+    communityUser?.displayName ||
+    data.profile?.name ||
+    'Student';
+
+  const username =
+    communityUser?.username ||
+    'guest';
+
+  nameElement.textContent =
+    displayName;
+
+  if (usernameElement) {
+    usernameElement.textContent =
+      `@${username}`;
+  }
+
+  if (communityUser?.avatarUrl) {
+    avatarElement.innerHTML = `
+      <img
+        src="${esc(communityUser.avatarUrl)}"
+        alt=""
+        style="
+          width:100%;
+          height:100%;
+          object-fit:cover;
+          border-radius:50%;
+        "
+      >
+      <span></span>
+    `;
+  } else {
+    avatarElement.innerHTML = `
+      ${esc(displayName.charAt(0).toUpperCase())}
+      <span></span>
+    `;
+  }
+}
+
 /* ---------- event binding (delegated — works for modals too) ---------- */
 function action(a, id, index, el) {
   if (a === 'search-go') {
@@ -4081,20 +5260,15 @@ if (a === 'confirm-delete-set') {
     return;
   }
   if (a === 'edit-profile') {
-    openModal(
-      `<h2>Edit Profile</h2>
-       <div class="form-grid">
-         <div class="field"><label>Name</label><input id="profile-name" value="${esc(data.profile.name)}"></div>
-         <div class="field"><label>Course label</label><input id="profile-course" value="${esc(data.profile.course)}"></div>
-       </div>
-       <div class="modal-actions">
-         <button class="btn" data-action="close-modal">Cancel</button>
-         <button class="btn primary" data-action="save-profile">Save</button>
-       </div>`
-    );
+    openCommunityProfileModal();
     return;
   }
-  if (a === 'save-profile') {
+
+  if (a === 'close-community-profile') {
+    closeCommunityProfileModal();
+    return;
+  }
+    if (a === 'save-profile') {
     data.profile.name = document.querySelector('#profile-name').value || 'Student';
     data.profile.course = document.querySelector('#profile-course').value || 'EcE Learner';
     save();
@@ -4288,6 +5462,10 @@ if (a === 'close-ai-unavailable') {
     modal.remove();
   }
 
+  return;
+}
+if (a === 'link-google') {
+  linkGoogleAccount();
   return;
 }
 }
@@ -4705,5 +5883,10 @@ function renderStudyGoal() {
   `;
 }
 loadLibraryData();
+
+(async () => {
+  await initializeCommunitySession();
+  handleGoogleLinkCallback();
+})();
 /* ---------- boot ---------- */
 render();
