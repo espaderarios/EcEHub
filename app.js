@@ -407,6 +407,88 @@ function linkGoogleAccount() {
     `${COMMUNITY_API_BASE}/api/auth/google/start`;
 }
 
+async function unlinkGoogleAccount() {
+  if (!communityUser) {
+    toast('Your community session is still loading.');
+    return;
+  }
+
+  if (!isGoogleLinked()) {
+    toast('No Google account is linked.');
+    return;
+  }
+
+  const email =
+    communityUser.googleEmail ||
+    'your Google account';
+
+  const confirmed = confirm(
+    `Unlink ${email} from your EcE Hub account?\n\n` +
+    'Your EcE Hub account, flashcards, workspace, and study progress will NOT be deleted.\n\n' +
+    'You can link a Google account again later.'
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const response = await communityFetch(
+      '/api/auth/google/unlink',
+      {
+        method: 'POST'
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        result.error ||
+        'Failed to unlink Google account.'
+      );
+    }
+
+    /*
+     * Refresh the user from the backend.
+     */
+    const profileResponse = await communityFetch(
+      '/api/users/me',
+      {
+        method: 'GET'
+      }
+    );
+
+    if (!profileResponse.ok) {
+      throw new Error(
+        'Google was unlinked, but the profile could not be refreshed.'
+      );
+    }
+
+    const profile =
+      await profileResponse.json();
+
+    communityUser =
+      normalizeCommunityUser(profile.user);
+
+    communityReady = true;
+
+    render();
+
+    toast(
+      'Google account unlinked successfully.'
+    );
+
+  } catch (error) {
+    console.error(
+      'Google unlink failed:',
+      error
+    );
+
+    toast(
+      `Failed to unlink Google account: ${error.message}`
+    );
+  }
+}
+
 async function handleGoogleLinkCallback() {
   const url = new URL(window.location.href);
 
@@ -2252,8 +2334,16 @@ function profileView() {
           </button>
 
           ${
-            !googleLinked
+            googleLinked
               ? `
+                <button
+                  class="btn"
+                  data-action="unlink-google"
+                >
+                  Unlink Google account
+                </button>
+              `
+              : `
                 <button
                   class="btn"
                   data-action="link-google"
@@ -2261,7 +2351,6 @@ function profileView() {
                   Link Google account
                 </button>
               `
-              : ''
           }
 
         </div>
@@ -5361,173 +5450,184 @@ if (a === 'confirm-delete-set') {
     return;
     }
 
-if (a === 'remove-set-card') {
-  const block = el?.closest('.set-card-editor');
+  if (a === 'remove-set-card') {
+    const block = el?.closest('.set-card-editor');
 
-  if (block) {
-    block.remove();
+    if (block) {
+      block.remove();
+    }
+
+    renumberSetCards();
+
+    const container = document.querySelector('#set-cards');
+    const empty = document.querySelector('#set-cards-empty');
+
+    if (container && empty) {
+      const count = container.querySelectorAll('.set-card-editor').length;
+      empty.style.display = count ? 'none' : 'flex';
+    }
+
+    return;
+  }
+  if (a === 'study-builtin') {
+    return studyBuiltin(id);
   }
 
-  renumberSetCards();
-
-  const container = document.querySelector('#set-cards');
-  const empty = document.querySelector('#set-cards-empty');
-
-  if (container && empty) {
-    const count = container.querySelectorAll('.set-card-editor').length;
-    empty.style.display = count ? 'none' : 'flex';
+  if (a === 'view-builtin') {
+    return studyBuiltin(id);
   }
 
-  return;
-}
-if (a === 'study-builtin') {
-  return studyBuiltin(id);
-}
+  if (a === 'exit-builtin-study') {
+    window.builtinStudyState = null;
+    return go('builtin-flashcards');
+  }
 
-if (a === 'view-builtin') {
-  return studyBuiltin(id);
-}
+  if (a === 'flip-builtin-card') {
 
-if (a === 'exit-builtin-study') {
-  window.builtinStudyState = null;
-  return go('builtin-flashcards');
-}
+    if (!window.builtinStudyState) {
+      return;
+    }
 
-if (a === 'flip-builtin-card') {
+    window.builtinStudyState.revealed =
+      !window.builtinStudyState.revealed;
 
-  if (!window.builtinStudyState) {
+    return render();
+  }
+
+  if (a === 'next-builtin-card') {
+
+    const state = window.builtinStudyState;
+
+    if (!state) {
+      return;
+    }
+
+    const deck = BUILTIN_FLASHCARDS.find(
+      x => x.id === state.deckId
+    );
+
+    if (!deck || !deck.cards.length) {
+      return;
+    }
+
+    state.index =
+      (state.index + 1) % deck.cards.length;
+
+    state.revealed = false;
+
+    return render();
+  }
+
+  if (a === 'prev-builtin-card') {
+
+    const state = window.builtinStudyState;
+
+    if (!state) {
+      return;
+    }
+
+    const deck = BUILTIN_FLASHCARDS.find(
+      x => x.id === state.deckId
+    );
+
+    if (!deck || !deck.cards.length) {
+      return;
+    }
+
+    state.index =
+      (state.index - 1 + deck.cards.length)
+      % deck.cards.length;
+
+    state.revealed = false;
+
+    return render();
+  }
+  if (a === 'open-ai-flashcard-maker') {
+    console.log('AI Flashcard Maker clicked');
+
+    if (window.AIassistant?.Available !== true) {
+      console.log('AI Assistant unavailable');
+      showAIAssistantUnavailable();
+      return;
+    }
+
+    console.log('AI Assistant available');
+
+    route = 'ai-flashcard-maker';
+    render();
+
+    setTimeout(() => {
+      setupAIFlashcardBookSearch();
+    }, 0);
+
+    window.scrollTo(0, 0);
+    return;
+  }
+  if (a === 'back-to-flashcards') {
+    route = 'flashcards';
+    render();
+    return;
+  }
+  if (a === 'generate-ai-flashcards') {
+    return generateAIFlashcards();
+  }
+  if (action === 'edit-set') {
+    const id = element.dataset.id;
+
+    const set = data.sets?.find(
+      s => s.id === id
+    );
+
+    if (!set) {
+      alert('Study set not found.');
+      return;
+    }
+
+    editStudySet(set);
+
     return;
   }
 
-  window.builtinStudyState.revealed =
-    !window.builtinStudyState.revealed;
+  if (action === 'delete-set') {
+    const id = element.dataset.id;
 
-  return render();
-}
+    const set = data.sets?.find(
+      s => s.id === id
+    );
 
-if (a === 'next-builtin-card') {
+    if (!set) {
+      alert('Study set not found.');
+      return;
+    }
 
-  const state = window.builtinStudyState;
+    deleteStudySet(set);
 
-  if (!state) {
     return;
   }
+  if (a === 'close-ai-unavailable') {
+    const modal = document.getElementById('aiUnavailableModal');
 
-  const deck = BUILTIN_FLASHCARDS.find(
-    x => x.id === state.deckId
-  );
+    if (modal) {
+      modal.remove();
+    }
 
-  if (!deck || !deck.cards.length) {
     return;
   }
+  if (a === 'link-google') {
 
-  state.index =
-    (state.index + 1) % deck.cards.length;
+    linkGoogleAccount();
 
-  state.revealed = false;
-
-  return render();
-}
-
-if (a === 'prev-builtin-card') {
-
-  const state = window.builtinStudyState;
-
-  if (!state) {
     return;
+
   }
 
-  const deck = BUILTIN_FLASHCARDS.find(
-    x => x.id === state.deckId
-  );
+  if (a === 'unlink-google') {
 
-  if (!deck || !deck.cards.length) {
+    unlinkGoogleAccount();
+
     return;
+
   }
-
-  state.index =
-    (state.index - 1 + deck.cards.length)
-    % deck.cards.length;
-
-  state.revealed = false;
-
-  return render();
-}
-if (a === 'open-ai-flashcard-maker') {
-  console.log('AI Flashcard Maker clicked');
-
-  if (window.AIassistant?.Available !== true) {
-    console.log('AI Assistant unavailable');
-    showAIAssistantUnavailable();
-    return;
-  }
-
-  console.log('AI Assistant available');
-
-  route = 'ai-flashcard-maker';
-  render();
-
-  setTimeout(() => {
-    setupAIFlashcardBookSearch();
-  }, 0);
-
-  window.scrollTo(0, 0);
-  return;
-}
-if (a === 'back-to-flashcards') {
-  route = 'flashcards';
-  render();
-  return;
-}
-if (a === 'generate-ai-flashcards') {
-  return generateAIFlashcards();
-}
-if (action === 'edit-set') {
-  const id = element.dataset.id;
-
-  const set = data.sets?.find(
-    s => s.id === id
-  );
-
-  if (!set) {
-    alert('Study set not found.');
-    return;
-  }
-
-  editStudySet(set);
-
-  return;
-}
-
-if (action === 'delete-set') {
-  const id = element.dataset.id;
-
-  const set = data.sets?.find(
-    s => s.id === id
-  );
-
-  if (!set) {
-    alert('Study set not found.');
-    return;
-  }
-
-  deleteStudySet(set);
-
-  return;
-}
-if (a === 'close-ai-unavailable') {
-  const modal = document.getElementById('aiUnavailableModal');
-
-  if (modal) {
-    modal.remove();
-  }
-
-  return;
-}
-if (a === 'link-google') {
-  linkGoogleAccount();
-  return;
-}
 }
 
 /* ---------- timer ---------- */
