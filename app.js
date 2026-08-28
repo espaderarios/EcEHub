@@ -2122,10 +2122,10 @@ function profileView() {
         'Your EcE Hub account information.'
       ) +
       `
-        <div class="card">
+        <div class="card profile-card">
           <h2>Loading profile...</h2>
 
-          <p style="color:var(--muted)">
+          <p class="profile-muted">
             Connecting to your EcE Hub account.
           </p>
         </div>
@@ -2144,8 +2144,7 @@ function profileView() {
       .charAt(0)
       .toUpperCase() || 'S';
 
-  const googleLinked =
-    isGoogleLinked();
+  const googleLinked = isGoogleLinked();
 
   return (
     pageTitle(
@@ -2154,57 +2153,33 @@ function profileView() {
     ) +
 
     `
-      <div class="card">
+      <div class="card profile-card">
 
         <!-- PROFILE HEADER -->
 
-        <div style="
-          display:flex;
-          align-items:center;
-          gap:18px;
-          margin-bottom:24px;
-        ">
+        <div class="profile-header">
 
-          <div style="
-            width:76px;
-            height:76px;
-            border-radius:50%;
-            overflow:hidden;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            background:var(--primary);
-            color:white;
-            font-size:30px;
-            font-weight:700;
-          ">
+          <div class="profile-avatar">
             ${
               user.avatarUrl
                 ? `
                   <img
                     src="${esc(user.avatarUrl)}"
                     alt=""
-                    style="
-                      width:100%;
-                      height:100%;
-                      object-fit:cover;
-                    "
+                    class="profile-avatar-image"
                   >
                 `
                 : esc(initial)
             }
           </div>
 
-          <div>
+          <div class="profile-heading">
 
-            <h2 style="margin:0;">
+            <h2 class="profile-name">
               ${esc(displayName)}
             </h2>
 
-            <div style="
-              color:var(--muted);
-              margin-top:4px;
-            ">
+            <div class="profile-username">
               @${esc(user.username || 'guest')}
             </div>
 
@@ -2212,67 +2187,43 @@ function profileView() {
 
         </div>
 
+
         <!-- ACCOUNT STATUS -->
 
-        <div style="
-          padding:16px;
-          border-radius:12px;
-          background:var(--surface-2, rgba(127,127,127,.08));
-          margin-bottom:20px;
-        ">
+        <div class="profile-account-status">
 
-          <div style="
-            font-weight:700;
-            margin-bottom:6px;
-          ">
+          <div class="profile-section-title">
             Account
           </div>
 
           ${
             googleLinked
               ? `
-                <div style="
-                  color:#16a34a;
-                  font-weight:600;
-                ">
+                <div class="profile-linked-status">
                   ✓ Google account linked
                 </div>
 
                 ${
                   user.googleEmail
                     ? `
-                      <div style="
-                        color:var(--muted);
-                        margin-top:5px;
-                      ">
+                      <div class="profile-google-email">
                         ${esc(user.googleEmail)}
                       </div>
                     `
                     : ''
                 }
 
-                <p style="
-                  color:var(--muted);
-                  margin:8px 0 0;
-                  font-size:13px;
-                ">
+                <p class="profile-description">
                   Your EcE Hub account can now be used
                   for cloud synchronization.
                 </p>
               `
               : `
-                <div style="
-                  font-weight:600;
-                ">
+                <div class="profile-guest-status">
                   Guest account
                 </div>
 
-                <p style="
-                  color:var(--muted);
-                  margin:6px 0 0;
-                  font-size:13px;
-                  line-height:1.5;
-                ">
+                <p class="profile-description">
                   You can use EcE Hub without linking
                   Google. Your study progress remains
                   stored locally until you choose to link
@@ -2283,48 +2234,38 @@ function profileView() {
 
         </div>
 
+
         <!-- ACCOUNT INFORMATION -->
 
-        <div style="
-          display:grid;
-          gap:10px;
-          margin-bottom:22px;
-        ">
+        <div class="profile-information">
 
-          <div>
-            Username:
+          <div class="profile-information-row">
+            <span>Username:</span>
             <strong>
               @${esc(user.username || 'guest')}
             </strong>
           </div>
 
-          <div>
-            Display name:
+          <div class="profile-information-row">
+            <span>Display name:</span>
             <strong>
               ${esc(displayName)}
             </strong>
           </div>
 
-          <div>
-            User ID:
-            <span style="color:var(--muted);">
-              ${
-                googleLinked
-                  ? esc(user.id)
-                  : 'guest'
-              }
+          <div class="profile-information-row">
+            <span>User ID:</span>
+            <span class="profile-user-id">
+              ${esc(user.id || 'guest')}
             </span>
           </div>
 
         </div>
 
+
         <!-- ACTIONS -->
 
-        <div style="
-          display:flex;
-          flex-wrap:wrap;
-          gap:10px;
-        ">
+        <div class="profile-actions">
 
           <button
             class="btn primary"
