@@ -341,9 +341,10 @@ let timerSeconds = 25 * 60;
 window.builtinStudyState = null;
 /* ---------- persistence & helpers ---------- */
 function isGoogleLinked() {
-  return !!(
+  return Boolean(
     communityUser &&
-    communityUser.googleSub
+    communityUser.googleSub &&
+    String(communityUser.googleSub).trim() !== ''
   );
 }
 
@@ -362,24 +363,41 @@ function getUserIdentityLabel() {
 function normalizeCommunityUser(user) {
   if (!user) return null;
 
+  const googleSub =
+    user.googleSub ??
+    user.google_sub ??
+    null;
+
+  const googleEmail =
+    user.googleEmail ??
+    user.google_email ??
+    '';
+
+  const googleEmailVerified =
+    user.googleEmailVerified ??
+    user.google_email_verified ??
+    false;
+
   return {
     ...user,
 
     googleSub:
-      user.googleSub ||
-      user.google_sub ||
-      null,
+      googleSub !== null &&
+      googleSub !== undefined &&
+      String(googleSub).trim() !== ''
+        ? String(googleSub)
+        : null,
 
     googleEmail:
-      user.googleEmail ||
-      user.google_email ||
-      null,
+      googleEmail
+        ? String(googleEmail)
+        : '',
 
     googleEmailVerified:
       Boolean(
-        user.googleEmailVerified ??
-        user.google_email_verified ??
-        false
+        googleEmailVerified === true ||
+        googleEmailVerified === 1 ||
+        googleEmailVerified === '1'
       )
   };
 }
@@ -431,45 +449,37 @@ async function unlinkGoogleAccount() {
   if (!confirmed) return;
 
   try {
-    const response = await communityFetch(
+    /*
+     * communityFetch() already parses JSON.
+     * It does NOT return the native Response object.
+     */
+    const result = await communityFetch(
       '/api/auth/google/unlink',
       {
         method: 'POST'
       }
     );
 
-    const result = await response.json();
-
-    if (!response.ok) {
+    if (!result?.ok || !result?.user) {
       throw new Error(
-        result.error ||
+        result?.error ||
         'Failed to unlink Google account.'
       );
     }
 
     /*
-     * Refresh the user from the backend.
+     * The unlink endpoint already gives us
+     * the updated user, so use it directly.
      */
-    const profileResponse = await communityFetch(
-      '/api/users/me',
-      {
-        method: 'GET'
-      }
-    );
-
-    if (!profileResponse.ok) {
-      throw new Error(
-        'Google was unlinked, but the profile could not be refreshed.'
-      );
-    }
-
-    const profile =
-      await profileResponse.json();
-
     communityUser =
-      normalizeCommunityUser(profile.user);
+      normalizeCommunityUser(result.user);
 
     communityReady = true;
+
+    console.log(
+      'Google account unlinked:',
+      communityUser
+    );
 
     render();
 
