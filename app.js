@@ -6,46 +6,19 @@ const AI_FLASHCARD_API = {
   generateEndpoint: '/api/ai/flashcards/generate'
 };
 
+window.AIassistant = {
+  Available: false
+};
+
 const seed = {
   profile: { name: 'Student', course: 'EcE Learner' },
-  classes: [
-    { id: 'c1', name: 'Circuits 101', category: 'Engineering', sets: 24, cards: 156, progress: 75 },
-    { id: 'c2', name: 'Electronics', category: 'Engineering', sets: 18, cards: 98, progress: 60 },
-    { id: 'c3', name: 'Digital Systems', category: 'Engineering', sets: 20, cards: 120, progress: 80 },
-    { id: 'c4', name: 'Control Systems', category: 'Engineering', sets: 15, cards: 75, progress: 45 }
-  ],
+  classes: [],
   folders: [],
   books: [],
-  sets: [
-    { id: 's1', title: "Ohm's Law", subject: 'Circuits 101', cards: [['What is Ohm’s Law?', 'V = IR'], ['Unit of resistance?', 'Ohm (Ω)'], ['If R increases at constant V?', 'Current decreases.']] },
-    { id: 's2', title: 'Logic Gates', subject: 'Digital Systems', cards: [['AND gate output?', '1 only when all inputs are 1.'], ['OR gate output?', '1 when at least one input is 1.'], ['NOT gate?', 'Inverts the input.']] },
-    { id: 's3', title: 'Transistors', subject: 'Electronics', cards: [['What are BJT terminals?', 'Base, collector, emitter.'], ['What controls a BJT?', 'Base current.']] }
-  ],
-  notes: [
-    { id: 'n1', title: "Kirchhoff's Laws", subject: 'Circuits 101', body: 'KCL: the algebraic sum of currents entering a node is zero. KVL: the algebraic sum of voltages around a closed loop is zero.', updated: 'Today' },
-    { id: 'n2', title: 'Binary Number System', subject: 'Digital Systems', body: 'Review binary-to-decimal conversion, complements, Boolean algebra, and basic logic identities.', updated: 'Yesterday' }
-  ],
-  quizzes: [
-    {
-      id: 'q1', title: 'Circuits Basics', subject: 'Circuits 101', questions: [
-        { q: 'Which law relates voltage, current and resistance?', options: ['Newton’s Law', 'Ohm’s Law', 'Faraday’s Law', 'Coulomb’s Law'], answer: 1 },
-        { q: 'What is the SI unit of resistance?', options: ['Volt', 'Ampere', 'Ohm', 'Watt'], answer: 2 },
-        { q: 'In a series circuit, current is…', options: ['the same through each element', 'always zero', 'different everywhere', 'undefined'], answer: 0 }
-      ]
-    },
-    {
-      id: 'q2', title: 'Logic Gates', subject: 'Digital Systems', questions: [
-        { q: 'Which gate inverts an input?', options: ['AND', 'OR', 'NOT', 'XOR'], answer: 2 },
-        { q: 'An AND gate outputs 1 when…', options: ['any input is 1', 'all inputs are 1', 'all inputs are 0', 'inputs differ'], answer: 1 }
-      ]
-    }
-  ],
-  activity: [
-    { text: 'Completed quiz: Circuits Basics', sub: 'Score: 85%', time: '2h ago' },
-    { text: "Studied: Ohm's Law Set", sub: '12 new cards reviewed', time: '5h ago' },
-    { text: 'Downloaded: Transistor.pdf', sub: 'Electronics • 2.4 MB', time: '1d ago' },
-    { text: 'Created new set: Logic Gates', sub: 'Digital Systems', time: '2d ago' }
-  ]
+  sets: [],
+  notes: [],
+  quizzes: [],
+  activity: []
 };
 
 const searchableRoutes = [
@@ -350,6 +323,7 @@ let timerSeconds = 25 * 60;
 
 window.builtinStudyState = null;
 /* ---------- persistence & helpers ---------- */
+
 function load() {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY));
@@ -1626,62 +1600,165 @@ function builtinStudyView() {
 function flashcardsView() {
   if (!window.studyState) {
     return (
-     pageTitle('Flashcards', 'Choose a study set to begin.') +
-    `<div class="flashcards-actions">
-    <button
-      type="button"
-      class="btn primary"
-      data-action="open-ai-flashcard-maker">
-      ✨ AI Flashcard Maker
-    </button>
-    </div>` +
-    `<div class="grid set-grid">
-      ${data.sets.map(s =>
-        `<div class="card set-card">
-          <h3>${esc(s.title)}</h3>
-          <p>${esc(s.subject)}</p>
+      pageTitle(
+        'Flashcards',
+        'Choose a study set to begin.'
+      ) +
 
-          <div class="set-meta">
-            ${s.cards.length} cards
+      `<div class="flashcards-actions">
+        <button
+          type="button"
+          class="btn primary"
+          data-action="open-ai-flashcard-maker">
+          ✨ AI Flashcard Maker
+        </button>
+      </div>` +
+
+      `<div class="grid set-grid">
+        ${(data.sets || []).map(s => `
+          <div class="card set-card">
+
+            <h3>${esc(s.title || 'Untitled Study Set')}</h3>
+
+            <p>${esc(s.subject || '')}</p>
+
+            <div class="set-meta">
+              ${(s.cards || []).length} cards
+            </div>
+
+            <button
+              type="button"
+              class="btn primary"
+              style="margin-top:16px"
+              data-action="study-set"
+              data-id="${esc(s.id)}">
+              Start studying
+            </button>
+
+            <div class="set-card-actions">
+
+              <button
+                type="button"
+                class="btn"
+                data-action="edit-set"
+                data-id="${esc(s.id)}">
+                ✏️ Edit
+              </button>
+
+              <button
+                type="button"
+                class="btn danger"
+                data-action="delete-set"
+                data-id="${esc(s.id)}">
+                🗑️ Delete
+              </button>
+
+            </div>
+
           </div>
-
-          <button
-            class="btn primary"
-            style="margin-top:16px"
-            data-action="study-set"
-            data-id="${s.id}">
-            Start studying
-          </button>
-        </div>`
-      ).join('')}
-    </div>`
+        `).join('')}
+      </div>`
     );
   }
 
-  const s = data.sets.find(x => x.id === window.studyState.setId);
+  const s =
+    data.sets.find(
+      x => x.id === window.studyState.setId
+    );
+
   if (!s || !s.cards.length) {
+
     window.studyState = null;
-    return pageTitle('Flashcards', 'Set not found or empty.') +
-      `<div class="card empty">This study set no longer exists. Choose another set.</div>`;
+
+    return (
+      pageTitle(
+        'Flashcards',
+        'Set not found or empty.'
+      ) +
+
+      `<div class="card empty">
+        This study set no longer exists.
+        Choose another set.
+      </div>`
+    );
   }
 
-  const card = s.cards[window.studyState.index];
-  const shown = window.studyState.revealed;
-  return `<div class="flash-study">
-    ${pageTitle('Flashcards', `${esc(s.title)} • Card ${window.studyState.index + 1} of ${s.cards.length}`,
-      `<button class="btn" data-action="stop-study">Exit</button>`)}
-    <div class="card flash-card" data-action="flip-card">
-      <div>
-        <div class="term">${esc(shown ? card[1] : card[0])}</div>
-        <div class="hint">${shown ? 'Answer' : 'Click to reveal answer'}</div>
+  const card =
+    s.cards[window.studyState.index];
+
+  const shown =
+    window.studyState.revealed;
+
+  return `
+    <div class="flash-study">
+
+      ${pageTitle(
+        'Flashcards',
+        `${esc(s.title)} • Card ${
+          window.studyState.index + 1
+        } of ${s.cards.length}`,
+
+        `<button
+          class="btn"
+          data-action="stop-study">
+          Exit
+        </button>`
+      )}
+
+      <div
+        class="card flash-card"
+        data-action="flip-card">
+
+        <div>
+
+          <div class="term">
+            ${esc(
+              shown
+                ? card[1]
+                : card[0]
+            )}
+          </div>
+
+          <div class="hint">
+            ${
+              shown
+                ? 'Answer'
+                : 'Click to reveal answer'
+            }
+          </div>
+
+        </div>
+
       </div>
+
+      <div class="study-controls">
+
+        <button
+          class="btn"
+          data-action="prev-card">
+          ← Previous
+        </button>
+
+        <button
+          class="btn primary"
+          data-action="flip-card">
+          ${
+            shown
+              ? 'Hide answer'
+              : 'Reveal answer'
+          }
+        </button>
+
+        <button
+          class="btn"
+          data-action="next-card">
+          Next →
+        </button>
+
+      </div>
+
     </div>
-    <div class="study-controls">
-      <button class="btn" data-action="prev-card">← Previous</button>
-      <button class="btn primary" data-action="flip-card">${shown ? 'Hide answer' : 'Reveal answer'}</button>
-      <button class="btn" data-action="next-card">Next →</button>
-    </div>
-  </div>`;
+  `;
 }
 
 function notesView() {
@@ -2476,18 +2553,20 @@ async function generateAIFlashcards() {
     // Show preview
     // -----------------------------
 
-    showAIGeneratedFlashcardPreview(
-      result,
-      {
-        title:
-          result.title ||
-          book.title ||
-          'AI Generated Flashcards',
+  closeAIFlashcardGenerator();
 
-        url:
-          driveUrl
-      }
-    );
+  showAIGeneratedFlashcardPreview(
+    result,
+    {
+      title:
+        result.title ||
+        book.title ||
+        'AI Generated Flashcards',
+
+      url:
+        driveUrl
+    }
+  );
 
   } catch (error) {
 
@@ -2706,6 +2785,14 @@ function setupAIFlashcardBookSearch() {
 
 function showAIGeneratedFlashcardPreview(result, book) {
 
+    // Remove any previous AI preview modal
+  document
+    .querySelectorAll('.ai-flashcard-modal')
+    .forEach(modal => modal.remove());
+
+  // Prevent the page behind the modal from scrolling
+  document.body.style.overflow = 'hidden';
+
   const cards =
     Array.isArray(result.cards)
       ? result.cards
@@ -2829,6 +2916,19 @@ function showAIGeneratedFlashcardPreview(result, book) {
 
   document.body.appendChild(modal);
 
+  /* Close when clicking the dark area outside the card */
+  modal.addEventListener('click', event => {
+
+    if (event.target === modal) {
+
+      modal.remove();
+
+      document.body.style.overflow = '';
+
+    }
+
+  });
+
 
   modal.querySelectorAll(
     '[data-preview-action="close"]'
@@ -2836,7 +2936,13 @@ function showAIGeneratedFlashcardPreview(result, book) {
 
     button.addEventListener(
       'click',
-      () => modal.remove()
+      () => {
+
+        modal.remove();
+
+        document.body.style.overflow = '';
+
+      }
     );
 
   });
@@ -2852,6 +2958,16 @@ function showAIGeneratedFlashcardPreview(result, book) {
       book
     )
   );
+
+}
+
+function closeAIFlashcardGenerator() {
+
+  document
+    .querySelectorAll('.ai-flashcard-generator-modal')
+    .forEach(modal => modal.remove());
+
+  document.body.style.overflow = '';
 
 }
 
@@ -2947,6 +3063,301 @@ function saveAIGeneratedSet(modal, result, book) {
   );
 
 }
+
+function editStudySet(set) {
+
+  const cards = Array.isArray(set.cards)
+    ? set.cards
+    : [];
+
+  const modal = document.createElement('div');
+
+  modal.className = 'modal-overlay study-set-edit-modal';
+
+  modal.innerHTML = `
+    <div class="modal-card study-set-editor">
+
+      <div class="modal-header">
+
+        <div>
+          <h2>✏️ Edit Study Set</h2>
+          <p>${escapeHTML(set.title || 'Study Set')}</p>
+        </div>
+
+        <button
+          type="button"
+          class="icon-btn"
+          data-edit-action="close">
+          ×
+        </button>
+
+      </div>
+
+      <div class="study-set-editor-body">
+
+        <label>
+          Set title
+          <input
+            type="text"
+            class="input"
+            id="editSetTitle"
+            value="${escapeAttribute(set.title || '')}">
+        </label>
+
+        <label>
+          Subject
+          <input
+            type="text"
+            class="input"
+            id="editSetSubject"
+            value="${escapeAttribute(set.subject || '')}">
+        </label>
+
+        <div class="edit-cards">
+
+          ${cards.map((card, index) => {
+
+            const question =
+              Array.isArray(card)
+                ? card[0]
+                : card.question || '';
+
+            const answer =
+              Array.isArray(card)
+                ? card[1]
+                : card.answer || '';
+
+            return `
+              <div
+                class="edit-card"
+                data-card-index="${index}">
+
+                <div class="edit-card-header">
+                  <strong>Card ${index + 1}</strong>
+
+                  <button
+                    type="button"
+                    class="btn danger edit-delete-card">
+                    🗑️
+                  </button>
+                </div>
+
+                <input
+                  type="text"
+                  class="input edit-question"
+                  value="${escapeAttribute(question)}"
+                  placeholder="Question">
+
+                <textarea
+                  class="input edit-answer"
+                  rows="3"
+                  placeholder="Answer">${escapeHTML(answer)}</textarea>
+
+              </div>
+            `;
+
+          }).join('')}
+
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+
+        <button
+          type="button"
+          class="btn"
+          data-edit-action="close">
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          class="btn primary"
+          data-edit-action="save">
+          💾 Save Changes
+        </button>
+
+      </div>
+
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  modal.querySelectorAll(
+    '[data-edit-action="close"]'
+  ).forEach(button => {
+
+    button.addEventListener('click', () => {
+      modal.remove();
+    });
+
+  });
+
+  modal.querySelectorAll(
+    '.edit-delete-card'
+  ).forEach(button => {
+
+    button.addEventListener('click', () => {
+
+      const card = button.closest('.edit-card');
+
+      if (card) {
+        card.remove();
+      }
+
+    });
+
+  });
+
+  modal.querySelector(
+    '[data-edit-action="save"]'
+  )?.addEventListener('click', () => {
+
+    const title =
+      modal.querySelector('#editSetTitle')
+        ?.value.trim();
+
+    const subject =
+      modal.querySelector('#editSetSubject')
+        ?.value.trim();
+
+    if (!title) {
+      alert('Please enter a title.');
+      return;
+    }
+
+    const updatedCards = [];
+
+    modal.querySelectorAll(
+      '.edit-card'
+    ).forEach(card => {
+
+      const question =
+        card.querySelector('.edit-question')
+          ?.value.trim();
+
+      const answer =
+        card.querySelector('.edit-answer')
+          ?.value.trim();
+
+      if (question && answer) {
+        updatedCards.push([
+          question,
+          answer
+        ]);
+      }
+
+    });
+
+    set.title = title;
+    set.subject = subject;
+    set.cards = updatedCards;
+
+    save();
+
+    modal.remove();
+
+    render();
+
+  });
+
+}
+
+function deleteStudySet(set) {
+
+  const confirmed = confirm(
+    `Delete "${set.title}"?\n\nThis cannot be undone.`
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  data.sets = (data.sets || []).filter(
+    existingSet => existingSet.id !== set.id
+  );
+
+  save();
+
+  render();
+
+}
+
+function showAIAssistantUnavailable() {
+  console.log('Showing AI unavailable modal');
+
+  const existing = document.getElementById('aiUnavailableModal');
+
+  if (existing) {
+    existing.remove();
+  }
+
+  const modal = document.createElement('div');
+
+  modal.id = 'aiUnavailableModal';
+
+  modal.className = 'modal-overlay';
+
+  modal.innerHTML = `
+    <div class="modal ai-unavailable-modal">
+
+      <div class="modal-header">
+
+        <div>
+          <h2>AI Assistant Unavailable</h2>
+          <p>AI features are currently being updated.</p>
+        </div>
+
+        <button
+          type="button"
+          class="modal-close"
+          data-action="close-ai-unavailable"
+          aria-label="Close">
+          ×
+        </button>
+
+      </div>
+
+      <div class="modal-body">
+
+        <div class="ai-unavailable-icon">
+          ✨
+        </div>
+
+        <h3>AI Assistant is currently unavailable</h3>
+
+        <p>
+          We're currently updating the AI Assistant.
+          The AI Flashcard Maker is temporarily unavailable.
+        </p>
+
+        <p class="muted">
+          Please try again later once the update is complete.
+        </p>
+
+      </div>
+
+      <div class="modal-footer">
+
+        <button
+          type="button"
+          class="btn primary"
+          data-action="close-ai-unavailable">
+          Got it
+        </button>
+
+      </div>
+
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  console.log('AI unavailable modal added to DOM');
+}
+
 /* ---------- event binding (delegated — works for modals too) ---------- */
 function action(a, id, index, el) {
   if (a === 'search-go') {
@@ -3809,6 +4220,16 @@ if (a === 'prev-builtin-card') {
   return render();
 }
 if (a === 'open-ai-flashcard-maker') {
+  console.log('AI Flashcard Maker clicked');
+
+  if (window.AIassistant?.Available !== true) {
+    console.log('AI Assistant unavailable');
+    showAIAssistantUnavailable();
+    return;
+  }
+
+  console.log('AI Assistant available');
+
   route = 'ai-flashcard-maker';
   render();
 
@@ -3826,6 +4247,48 @@ if (a === 'back-to-flashcards') {
 }
 if (a === 'generate-ai-flashcards') {
   return generateAIFlashcards();
+}
+if (action === 'edit-set') {
+  const id = element.dataset.id;
+
+  const set = data.sets?.find(
+    s => s.id === id
+  );
+
+  if (!set) {
+    alert('Study set not found.');
+    return;
+  }
+
+  editStudySet(set);
+
+  return;
+}
+
+if (action === 'delete-set') {
+  const id = element.dataset.id;
+
+  const set = data.sets?.find(
+    s => s.id === id
+  );
+
+  if (!set) {
+    alert('Study set not found.');
+    return;
+  }
+
+  deleteStudySet(set);
+
+  return;
+}
+if (a === 'close-ai-unavailable') {
+  const modal = document.getElementById('aiUnavailableModal');
+
+  if (modal) {
+    modal.remove();
+  }
+
+  return;
 }
 }
 
