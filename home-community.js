@@ -13,8 +13,7 @@
   }
 
   function isHome() {
-    const active = document.querySelector('.nav-item[data-route="home"].active');
-    return Boolean(active);
+    return Boolean(document.querySelector('.nav-item[data-route="home"].active'));
   }
 
   function getContainer() {
@@ -27,7 +26,7 @@
         <div class="section-head home-community-head">
           <div>
             <h2>Community Flashcards</h2>
-            <p class="home-community-subtitle">Your saved community study sets</p>
+            <p class="home-community-subtitle">Community-made study sets</p>
           </div>
           <button type="button" class="btn" data-route="flashcards">View all</button>
         </div>
@@ -50,7 +49,7 @@
         <div class="section-head home-community-head">
           <div>
             <h2>Community Flashcards</h2>
-            <p class="home-community-subtitle">Build your study library with community-made sets</p>
+            <p class="home-community-subtitle">Study sets shared by the EcE Hub community</p>
           </div>
           <button type="button" class="btn" data-route="flashcards">Explore</button>
         </div>
@@ -58,7 +57,7 @@
           <div class="home-community-empty-icon">▧</div>
           <div>
             <strong>No community flashcard sets yet</strong>
-            <p>Explore community sets and add the ones you want to study to your workspace.</p>
+            <p>Explore the community and add useful sets to your workspace.</p>
           </div>
           <button type="button" class="btn primary" data-route="flashcards">Explore flashcards</button>
         </div>
@@ -75,7 +74,7 @@
         <div class="section-head home-community-head">
           <div>
             <h2>Community Flashcards</h2>
-            <p class="home-community-subtitle">Your saved community study sets</p>
+            <p class="home-community-subtitle">Study sets shared by the EcE Hub community</p>
           </div>
           <button type="button" class="btn" data-route="flashcards">View all</button>
         </div>
@@ -187,7 +186,7 @@
           <div class="section-head home-community-head">
             <div>
               <h2>Community Flashcards</h2>
-              <p class="home-community-subtitle">Your saved community study sets</p>
+              <p class="home-community-subtitle">Study sets shared by the EcE Hub community</p>
             </div>
           </div>
           <div class="home-community-empty card">
