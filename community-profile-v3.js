@@ -45,11 +45,6 @@
     return data;
   }
 
-  function toast(message) {
-    if (typeof window.toast === 'function') window.toast(message);
-    else console.info(message);
-  }
-
   function normalizeSet(raw) {
     const author = raw?.author || {};
     return {
@@ -65,19 +60,6 @@
       authorName: text(raw?.authorName || raw?.author_display_name || author.displayName),
       authorAvatarUrl: text(raw?.authorAvatarUrl || raw?.author_avatar_url || author.avatarUrl)
     };
-  }
-
-  async function findUser(candidate) {
-    const query = text(candidate?.username || candidate?.displayName || candidate?.id);
-    if (!query) return null;
-
-    const result = await request(`/api/search?q=${encodeURIComponent(query)}`);
-    const users = Array.isArray(result?.users) ? result.users : [];
-
-    return users.find(user =>
-      (candidate?.id && user.id === candidate.id) ||
-      (candidate?.username && text(user.username).toLowerCase() === text(candidate.username).toLowerCase())
-    ) || null;
   }
 
   function belongsTo(set, user) {
@@ -175,20 +157,29 @@
           : `<div class="community-public-profile-empty card"><h3>No public flashcards yet</h3><p>This user hasn't shared any flashcard sets publicly.</p></div>`}
       </div>`;
 
-    const back = content.querySelector('[data-community-profile-back]');
-    back?.addEventListener('click', () => {
+    content.querySelector('[data-community-profile-back]')?.addEventListener('click', () => {
       if (window.history.length > 1) window.history.back();
       else if (typeof window.go === 'function') window.go('home');
     });
 
-    history.pushState(
-      { communityProfile: username },
-      '',
-      `?community_profile=${encodeURIComponent(username)}`
-    );
+    const nextUrl = `?community_profile=${encodeURIComponent(username)}`;
+    const currentUrl = `${window.location.search}`;
+    if (currentUrl === nextUrl) {
+      history.replaceState({ communityProfile: username }, '', nextUrl);
+    } else {
+      history.pushState({ communityProfile: username }, '', nextUrl);
+    }
   }
 
   window.openCommunityUserProfile = openCommunityUserProfileV3;
   window.communityProfileV3Ready = true;
+
+  // Re-render a profile URL after a full refresh. The legacy profile fixer
+  // may also run its old loader; this v3 renderer runs after it and wins.
+  window.addEventListener('load', () => {
+    const username = new URLSearchParams(window.location.search).get('community_profile');
+    if (username) openCommunityUserProfileV3({ username });
+  });
+
   console.log('EcE Hub public community profile v3 installed.');
 })();
