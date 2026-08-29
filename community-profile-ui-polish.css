@@ -1,0 +1,122 @@
+/* EcE Hub — polished public community profile UI */
+.community-public-profile {
+  max-width: 1120px !important;
+  margin: 0 auto !important;
+  padding: 30px 8px 64px !important;
+}
+
+.community-public-profile-back {
+  margin-bottom: 20px !important;
+  border-radius: 10px !important;
+}
+
+.community-public-profile-hero {
+  position: relative;
+  display: grid !important;
+  grid-template-columns: 104px minmax(0, 1fr) !important;
+  gap: 22px !important;
+  align-items: center !important;
+  padding: 26px !important;
+  margin-bottom: 32px !important;
+  border-radius: 22px !important;
+  background: linear-gradient(135deg, rgba(99,72,255,.13), rgba(64,169,255,.06)) !important;
+  border: 1px solid var(--border,#263653) !important;
+}
+
+.community-public-profile-avatar {
+  width: 104px !important;
+  height: 104px !important;
+  flex: 0 0 104px !important;
+  border-radius: 50% !important;
+  border: 3px solid rgba(255,255,255,.14) !important;
+  box-shadow: 0 12px 30px rgba(0,0,0,.18) !important;
+}
+
+.community-public-profile-name {
+  font-size: clamp(26px, 3vw, 36px) !important;
+  letter-spacing: -.02em !important;
+}
+
+.community-public-profile-username {
+  font-size: 14px !important;
+  font-weight: 650 !important;
+}
+
+.community-public-profile-bio {
+  max-width: 760px !important;
+  margin-top: 12px !important;
+  line-height: 1.65 !important;
+}
+
+.community-public-profile-heading {
+  margin: 0 0 16px !important;
+}
+
+.community-public-profile-heading h2 {
+  font-size: 22px !important;
+}
+
+.community-public-profile-grid {
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)) !important;
+  gap: 18px !important;
+}
+
+.community-public-profile-set {
+  min-width: 0;
+  padding: 20px !important;
+  border-radius: 18px !important;
+  transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+
+.community-public-profile-set:hover {
+  transform: translateY(-2px);
+  border-color: rgba(99,72,255,.55) !important;
+  box-shadow: 0 12px 30px rgba(0,0,0,.14);
+}
+
+.community-public-profile-set h3 {
+  font-size: 17px !important;
+  line-height: 1.35 !important;
+}
+
+.community-public-profile-set .subject {
+  font-size: 13px !important;
+}
+
+.community-public-profile-set .description {
+  min-height: 44px !important;
+}
+
+.community-public-profile-set .meta {
+  padding-top: 10px;
+  border-top: 1px solid var(--border,#263653);
+}
+
+.community-public-profile-set .actions {
+  flex-wrap: wrap;
+}
+
+.community-public-profile-empty {
+  border-radius: 18px !important;
+  padding: 36px 24px !important;
+}
+
+.community-public-profile-loading {
+  border-radius: 18px !important;
+}
+
+@media (max-width: 700px) {
+  .community-public-profile {
+    padding: 18px 0 44px !important;
+  }
+
+  .community-public-profile-hero {
+    grid-template-columns: 1fr !important;
+    text-align: center;
+    justify-items: center;
+  }
+
+  .community-public-profile-bio {
+    text-align: left;
+  }
+}
