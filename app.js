@@ -3983,8 +3983,8 @@ async function communityFetch(path, options = {}) {
   const url = `${COMMUNITY_API_BASE}${path}`;
 
   const response = await fetch(url, {
-    credentials: 'include',
     ...options,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...(options.headers || {})
@@ -4001,7 +4001,8 @@ async function communityFetch(path, options = {}) {
 
   if (!response.ok) {
     const error = new Error(
-      data?.error || `Community API request failed (${response.status}).`
+      data?.error ||
+      `Community API request failed (${response.status}).`
     );
 
     error.status = response.status;
