@@ -464,7 +464,7 @@ async function unlinkGoogleAccount() {
       }
     );
 
-    if (!result?.ok || !result?.user) {
+    if (!result?.user) {
       throw new Error(
         result?.error ||
         'Failed to unlink Google account.'
@@ -516,22 +516,33 @@ async function handleGoogleLinkCallback() {
     try {
       /*
        * Google OAuth succeeded on the backend.
-       * Fetch the current user again so the frontend gets
-       * the newly linked Google identity from D1.
+       *
+       * IMPORTANT:
+       * communityFetch() already parses the JSON response.
+       * It returns the parsed object, NOT a native Response.
        */
-    const result = await communityFetch(
+      const result = await communityFetch(
         '/api/users/me',
         {
           method: 'GET'
         }
       );
 
+      console.log(
+        'Google-link profile refresh response:',
+        result
+      );
+
       if (!result?.user) {
         throw new Error(
-          'Failed to refresh community profile.'
+          'The server did not return the linked community profile.'
         );
       }
 
+      /*
+       * Replace the old guest user in memory with
+       * the freshly fetched Google-linked user.
+       */
       communityUser =
         normalizeCommunityUser(result.user);
 
@@ -542,13 +553,17 @@ async function handleGoogleLinkCallback() {
         communityUser
       );
 
-      toast(
-        'Google account linked successfully.'
+      /*
+       * This should now be true if the backend returned
+       * google_sub/googleSub.
+       */
+      console.log(
+        'Google linked:',
+        isGoogleLinked()
       );
 
       /*
-       * Remove the OAuth callback parameter from
-       * the browser URL.
+       * Remove the OAuth callback parameter.
        */
       url.searchParams.delete(
         'community_google_linked'
@@ -558,17 +573,28 @@ async function handleGoogleLinkCallback() {
         {},
         document.title,
         url.pathname +
-          (url.searchParams.toString()
-            ? `?${url.searchParams.toString()}`
-            : '') +
+          (
+            url.searchParams.toString()
+              ? `?${url.searchParams.toString()}`
+              : ''
+          ) +
           url.hash
       );
 
       /*
-       * Re-render the current page so Profile immediately
-       * changes from Guest account → Google account linked.
+       * Refresh the header/profile UI.
+       */
+      updateCommunityHeader();
+      updateCommunityUserUI();
+
+      /*
+       * Re-render the current page.
        */
       render();
+
+      toast(
+        'Google account linked successfully.'
+      );
 
       return true;
 
@@ -579,7 +605,9 @@ async function handleGoogleLinkCallback() {
       );
 
       toast(
-        'Google account was linked, but the profile could not be refreshed. Please reload the page.'
+        `Google account was linked, but the profile could not be refreshed: ${
+          err?.message || 'Unknown error'
+        }`
       );
 
       return false;
@@ -604,9 +632,11 @@ async function handleGoogleLinkCallback() {
       {},
       document.title,
       url.pathname +
-        (url.searchParams.toString()
-          ? `?${url.searchParams.toString()}`
-          : '') +
+        (
+          url.searchParams.toString()
+            ? `?${url.searchParams.toString()}`
+            : ''
+        ) +
         url.hash
     );
 
