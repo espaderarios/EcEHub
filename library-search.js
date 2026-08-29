@@ -3,11 +3,7 @@
   'use strict';
 
   const LIBRARY_URL = new URL('library.json', document.baseURI).href;
-  const state = {
-    loaded: false,
-    loading: false
-  };
-
+  const state = { loaded: false, loading: false };
   const text = value => String(value ?? '').trim();
 
   function normalizeBook(book) {
@@ -26,7 +22,8 @@
       course: folder,
       description: folder,
       yearLevel,
-      driveUrl
+      driveUrl,
+      _librarySource: true
     };
   }
 
@@ -52,8 +49,28 @@
   function rerunActiveSearch() {
     const input = document.getElementById('globalSearch');
     if (!input || !text(input.value)) return;
-
     input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  function applyLibrary(libraryBooks) {
+    globalThis.ECEHUB_LIBRARY_BOOKS = libraryBooks;
+
+    if (globalThis.data && Array.isArray(globalThis.data.books)) {
+      globalThis.data.books = mergeBooks(globalThis.data.books, libraryBooks);
+      console.log(
+        'EcE Hub Library search index applied:',
+        libraryBooks.length,
+        'library books;',
+        globalThis.data.books.length,
+        'total searchable books.'
+      );
+    } else {
+      console.log(
+        'EcE Hub Library catalog loaded before workspace data; retaining library index.'
+      );
+    }
+
+    rerunActiveSearch();
   }
 
   async function loadLibraryIntoSearch() {
@@ -61,46 +78,49 @@
     state.loading = true;
 
     try {
-      const response = await fetch(LIBRARY_URL, {
-        cache: 'no-store'
-      });
-
+      const response = await fetch(LIBRARY_URL, { cache: 'no-store' });
       if (!response.ok) {
         throw new Error(`library.json returned HTTP ${response.status}`);
       }
 
       const payload = await response.json();
-      const libraryBooks = Array.isArray(payload) ? payload : [];
-      const existingBooks = Array.isArray(globalThis.data?.books)
-        ? globalThis.data.books
+      const libraryBooks = Array.isArray(payload)
+        ? payload.map(normalizeBook)
         : [];
 
-      if (!globalThis.data) {
-        console.warn('Library search index: global data object is not ready.');
-        return;
-      }
-
-      globalThis.data.books = mergeBooks(
-        existingBooks,
-        libraryBooks
-      );
-
+      applyLibrary(libraryBooks);
       state.loaded = true;
 
-      console.log(
-        'EcE Hub Library search index loaded:',
-        libraryBooks.length,
-        'library books;',
-        globalThis.data.books.length,
-        'total searchable books.'
-      );
+      /*
+       * app.js loads its own library data asynchronously and may replace
+       * data.books after this file runs. Re-apply the public catalog for a
+       * short window so that the Home search cannot lose these books.
+       */
+      let attempts = 0;
+      const repairTimer = setInterval(() => {
+        attempts += 1;
+        if (globalThis.data && Array.isArray(globalThis.data.books)) {
+          const before = globalThis.data.books.length;
+          globalThis.data.books = mergeBooks(
+            globalThis.data.books,
+            libraryBooks
+          );
 
-      rerunActiveSearch();
+          if (globalThis.data.books.length !== before) {
+            console.log(
+              'EcE Hub Library search index repaired:',
+              globalThis.data.books.length,
+              'searchable books.'
+            );
+            rerunActiveSearch();
+          }
+        }
+
+        if (attempts >= 40) clearInterval(repairTimer);
+      }, 250);
+
     } catch (error) {
-      console.error(
-        'Failed to load library catalog into Home search:',
-        error
-      );
+      console.error('Failed to load library catalog into Home search:', error);
     } finally {
       state.loading = false;
     }
