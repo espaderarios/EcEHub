@@ -224,7 +224,6 @@
       .workspace-flashcard-actions .btn{flex:1;min-width:76px;white-space:nowrap}
       .workspace-flashcard-note{margin-top:11px;color:var(--muted);font-size:12px}
       .workspace-flashcards-empty{padding:22px;text-align:center;color:var(--muted)}
-      .workspace-flashcards-loading{padding:20px;text-align:center;color:var(--muted)}
       @media(max-width:1100px){.workspace-flashcards-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
       @media(max-width:650px){.workspace-flashcards-grid{grid-template-columns:1fr}.workspace-flashcards-toolbar,.workspace-flashcards-section-head{align-items:flex-start;flex-direction:column}}
     `;
@@ -326,6 +325,11 @@
   }, true);
 
   document.addEventListener('ecehub:community-flashcard-updated', () => {
+    lastSignature = '';
+    setTimeout(() => render(true), 0);
+  });
+
+  document.addEventListener('ecehub:community-workspace-refresh', () => {
     lastSignature = '';
     setTimeout(() => render(true), 0);
   });
