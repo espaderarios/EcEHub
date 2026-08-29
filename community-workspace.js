@@ -103,10 +103,7 @@
       ? availableSets.filter(set => set.owned)
       : [];
 
-    /*
-     * Never expose another user's private set. Workspace entries are only
-     * accepted when they are public, or when the current user owns the set.
-     */
+    /* Never expose another user's private set. */
     const safeWorkspaceSets = workspaceSets.filter(set =>
       set.visibility !== 'private' || set.owned
     );
@@ -146,7 +143,6 @@
       .community-workspace-title:hover{color:var(--purple,#6348ff)}
       .community-workspace-subject{margin-top:5px;color:var(--muted);font-size:var(--font-small)}
       .community-workspace-meta{margin-top:11px;color:var(--muted);font-size:12px}
-      .community-workspace-owner{margin-top:4px;color:var(--muted);font-size:12px}
       .community-workspace-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:15px}
       .community-workspace-actions .btn{flex:1;min-width:86px;white-space:nowrap}
       .community-workspace-empty{padding:22px;text-align:center;color:var(--muted)}
@@ -182,12 +178,12 @@
 
         <div class="community-workspace-actions">
           <button type="button" class="btn primary" data-action="study-community-set" data-id="${esc(set.id)}">Study</button>
-          <button type="button" class="btn" data-action="open-community-set" data-id="${esc(set.id)}">Cards</button>
+          <button type="button" class="btn" data-action="view-community-set" data-id="${esc(set.id)}">Cards</button>
           ${set.owned ? `<button type="button" class="btn" data-action="edit-community-set" data-id="${esc(set.id)}">Edit</button>` : ''}
           ${!set.owned ? `<button type="button" class="btn" data-community-workspace-remove="${esc(set.id)}">Remove</button>` : ''}
         </div>
 
-        ${set.owned ? `<div class="community-workspace-note">You can change this set between Public and Private from Edit.</div>` : ''}
+        ${set.owned ? `<div class="community-workspace-note">Use Edit to switch this set between Public and Private.</div>` : ''}
       </article>`;
   }
 
