@@ -3,7 +3,16 @@
   'use strict';
 
   const API = 'https://ecehub-community.ecehub-ai-backend.workers.dev';
-  const state = { q: '', timer: 0, request: 0, community: null };
+  const LIBRARY_URL = new URL('library.json', document.baseURI).href;
+  const state = {
+    q: '',
+    timer: 0,
+    request: 0,
+    community: null,
+    libraryBooks: [],
+    libraryLoaded: false,
+    libraryLoading: false
+  };
 
   const esc = v => String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;');
   const s = v => String(v ?? '').trim();
@@ -22,22 +31,118 @@
     return !!document.querySelector('.nav-item[data-route="home"].active');
   }
 
+  function normalizeBook(book) {
+    const folder = s(book?.folder);
+    const title = s(book?.title);
+    const author = s(book?.author);
+    const driveUrl = s(book?.driveUrl);
+    const yearLevel = Array.isArray(book?.yearLevel)
+      ? book.yearLevel.map(s).filter(Boolean)
+      : [];
+
+    return {
+      ...book,
+      title,
+      folder,
+      author,
+      driveUrl,
+      course: s(book?.course) || folder,
+      subject: s(book?.subject) || folder,
+      description: s(book?.description) || folder,
+      yearLevel,
+      _librarySource: true
+    };
+  }
+
+  function mergeBooks(existing, libraryBooks) {
+    const merged = [];
+    const seen = new Set();
+
+    for (const raw of [...(existing || []), ...(libraryBooks || [])]) {
+      const book = normalizeBook(raw);
+      if (!book.title && !book.driveUrl) continue;
+
+      const key = book.driveUrl
+        || `${n(book.title)}::${n(book.folder)}::${n(book.author)}`;
+
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(book);
+    }
+
+    return merged;
+  }
+
+  async function loadLibraryBooks() {
+    if (state.libraryLoaded) return state.libraryBooks;
+    if (state.libraryLoading) {
+      while (state.libraryLoading) {
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+      return state.libraryBooks;
+    }
+
+    state.libraryLoading = true;
+
+    try {
+      const response = await fetch(LIBRARY_URL, {
+        cache: 'no-store'
+      });
+
+      if (!response.ok) {
+        throw new Error(`library.json returned HTTP ${response.status}`);
+      }
+
+      const payload = await response.json();
+      const books = Array.isArray(payload)
+        ? payload.map(normalizeBook)
+        : [];
+
+      state.libraryBooks = books;
+      state.libraryLoaded = true;
+
+      console.log(
+        'EcE Hub Home search: library index loaded',
+        books.length,
+        'books'
+      );
+
+      return state.libraryBooks;
+    } catch (error) {
+      console.error(
+        'EcE Hub Home search: failed to load library.json:',
+        error
+      );
+      state.libraryBooks = [];
+      return state.libraryBooks;
+    } finally {
+      state.libraryLoading = false;
+    }
+  }
+
   function dataSets() {
     const d = globalThis.data || {};
+
     return {
-      books: Array.isArray(d.books) ? d.books : [],
+      books: mergeBooks(
+        Array.isArray(d.books) ? d.books : [],
+        state.libraryBooks
+      ),
       sets: Array.isArray(d.sets) ? d.sets : [],
       notes: Array.isArray(d.notes) ? d.notes : [],
       quizzes: Array.isArray(d.quizzes) ? d.quizzes : [],
-      builtin: Array.isArray(globalThis.BUILTIN_FLASHCARDS) ? globalThis.BUILTIN_FLASHCARDS : []
+      builtin: Array.isArray(globalThis.BUILTIN_FLASHCARDS)
+        ? globalThis.BUILTIN_FLASHCARDS
+        : []
     };
   }
 
   function score(x, q) {
-    const title=n(x.title), subject=n(x.subject||x.course), desc=n(x.description||x.content||x.text), user=n(x.username||x.authorUsername||x.author_username), name=n(x.displayName||x.authorName);
+    const title=n(x.title), subject=n(x.subject||x.course), desc=n(x.description||x.content||x.text), user=n(x.username||x.authorUsername||x.author_username), name=n(x.displayName||x.authorName), author=n(x.author);
     let v=0;
     if(title===q)v+=1000; else if(title.startsWith(q))v+=700; else if(title.includes(q))v+=450;
     if(subject===q)v+=350; else if(subject.startsWith(q))v+=220; else if(subject.includes(q))v+=150;
+    if(author===q)v+=500; else if(author.startsWith(q))v+=300; else if(author.includes(q))v+=180;
     if(user===q)v+=900; else if(user.startsWith(q))v+=600; else if(user.includes(q))v+=300;
     if(name===q)v+=850; else if(name.startsWith(q))v+=550; else if(name.includes(q))v+=300;
     if(desc.includes(q))v+=80;
@@ -48,8 +153,17 @@
     const d=dataSets();
     const match=(x,fields)=>fields.some(v=>n(v).includes(q));
     const sort=a=>a.map(x=>({...x,_score:score(x,q)})).sort((a,b)=>b._score-a._score).slice(0,24);
+
     return {
-      books:sort(d.books.filter(x=>match(x,[x.title,x.course,x.subject,x.author,x.description]))),
+      books:sort(d.books.filter(x=>match(x,[
+        x.title,
+        x.folder,
+        x.course,
+        x.subject,
+        x.author,
+        x.description,
+        Array.isArray(x.yearLevel) ? x.yearLevel.join(' ') : x.yearLevel
+      ]))),
       workspace:sort(d.sets.filter(x=>match(x,[x.title,x.subject,x.description]))),
       builtin:sort(d.builtin.filter(x=>match(x,[x.title,x.subject,x.description]))),
       notes:sort(d.notes.filter(x=>match(x,[x.title,x.subject,x.content,x.text,x.body]))),
@@ -105,7 +219,7 @@
   function title(type,x){return type==='users'?(x.displayName||x.username||'Community member'):(x.title||'Untitled');}
   function meta(type,x){
     if(type==='users')return x.username?`@${x.username}`:'Community member';
-    if(type==='books')return x.course||x.subject||'PDF';
+    if(type==='books')return x.author ? `${x.course||x.subject||'PDF'} · ${x.author}` : (x.course||x.subject||'PDF');
     if(['communityFlashcards','workspace','builtin'].includes(type)){const c=Number(x.cardCount||(Array.isArray(x.cards)?x.cards.length:0));return `${x.subject||'General'} · ${c} card${c===1?'':'s'}`;}
     return x.subject|| (type==='notes'?'Note':'Quiz');
   }
@@ -113,7 +227,7 @@
   function row(type,x){return `<button type="button" class="global-search-row" ${action(type,x)}><span class="global-search-row-icon ${type}">${type==='users'&&x.avatarUrl?`<img src="${esc(x.avatarUrl)}" alt="">`:ico[type]}</span><span class="global-search-row-copy"><strong>${esc(title(type,x))}</strong><small>${esc(meta(type,x))}</small></span><span class="global-search-row-type">${esc(order.find(o=>o[0]===type)?.[1]||'Result')}</span></button>`;}
 
   function card(type,x){
-    const d=s(x.author||x.description||x.bio||x.content||x.text||x.body);
+    const d=s(type==='books' ? (x.author||x.folder||x.description) : (x.description||x.bio||x.content||x.text||x.body));
     return `<article class="global-search-card card"><button type="button" class="global-search-card-hit" ${action(type,x)}><div class="global-search-card-top"><span class="global-search-card-icon ${type}">${type==='users'&&x.avatarUrl?`<img src="${esc(x.avatarUrl)}" alt="">`:ico[type]}</span><span class="global-search-card-kind">${esc(order.find(o=>o[0]===type)?.[1]||'Result')}</span></div><h3>${esc(title(type,x))}</h3><div class="global-search-card-meta">${esc(meta(type,x))}</div>${d?`<p>${esc(d.slice(0,180))}${d.length>180?'…':''}</p>`:''}</button>${type==='communityFlashcards'?`<div class="global-search-card-actions"><button type="button" class="btn primary" data-action="study-community-set" data-id="${esc(x.id||'')}">Study</button><button type="button" class="btn" data-action="add-community-set" data-id="${esc(x.id||'')}">+ Workspace</button></div>`:''}</article>`;
   }
 
@@ -132,7 +246,15 @@
     const q=n(value), id=++state.request; state.q=q;
     if(!q){clear(els);return;}
     els.clear.hidden=false;
-    const localResults=local(q); render(els,q,localResults,true);
+
+    /* The public Library catalog is an independent search source.
+       Do not depend on app.js's internal data.books timing or scope. */
+    await loadLibraryBooks();
+    if(id!==state.request||state.q!==q)return;
+
+    const localResults=local(q);
+    render(els,q,localResults,true);
+
     const sets=await community();
     if(id!==state.request||state.q!==q)return;
     render(els,q,{...localResults,...mergeCommunity(q,sets)},false);
