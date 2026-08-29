@@ -1,6 +1,6 @@
 /* EcE Hub — community search polish
- * Keeps People results in sync with the main search page without creating
- * duplicate sections or mutation-observer loops.
+ * Keeps People results in sync with the main search page without duplicate
+ * sections or mutation-observer loops.
  */
 (() => {
   'use strict';
@@ -49,24 +49,21 @@
     const page = document.querySelector('.global-search-page');
     if (!page || !query) return;
 
-    // This marker prevents the MutationObserver from repeatedly rewriting
-    // the same search page after our own DOM changes.
     if (page.dataset.communitySearchPolishQuery === query &&
-        (page.querySelector('.community-search-polished-people') ||
-         page.dataset.communitySearchPolishEmpty === '1')) {
+        page.dataset.communitySearchPolishDone === '1') {
       return;
     }
 
-    const sections = [...page.querySelectorAll('[data-search-section]')]
-      .filter(section => !section.classList.contains('community-persistent-people'));
-
-    page.querySelectorAll('.community-persistent-people').forEach(section => section.remove());
+    // Both community-ui-fix.js and older People fixes use the users section.
+    // Remove every generated People section before installing the single
+    // canonical one below.
+    page.querySelectorAll('[data-search-section="users"]').forEach(section => section.remove());
 
     const users = getUsers(query);
 
     if (users.length) {
       const section = document.createElement('section');
-      section.className = 'global-search-section community-persistent-people community-search-polished-people';
+      section.className = 'global-search-section community-search-polished-people';
       section.dataset.searchSection = 'users';
       section.innerHTML = `
         <div class="global-search-section-head">
@@ -108,16 +105,13 @@
       else page.appendChild(section);
 
       page.querySelector('.global-search-empty')?.remove();
-      page.dataset.communitySearchPolishEmpty = '0';
-    } else {
-      page.dataset.communitySearchPolishEmpty = '1';
     }
 
-    const total = [...sections]
-      .reduce((sum, section) => sum + section.querySelectorAll('.global-search-card').length, 0)
-      + users.length;
+    const total = [...page.querySelectorAll('[data-search-section]')]
+      .reduce((sum, section) => sum + section.querySelectorAll('.global-search-card').length, 0);
 
     page.dataset.communitySearchPolishQuery = query;
+    page.dataset.communitySearchPolishDone = '1';
     refreshSummary(page, total, query);
   }
 
@@ -168,8 +162,8 @@
     const observer = new MutationObserver(() => {
       if (state.lastQuery) refreshSearchPage(state.lastQuery);
     });
-
     observer.observe(content, { childList: true, subtree: true });
+
     console.log('EcE Hub community search polish installed.');
   }
 
