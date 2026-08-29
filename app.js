@@ -4059,13 +4059,23 @@ async function loadCommunityFlashcards() {
 
 async function initializeCommunitySession() {
   try {
-    const data = await communityFetch('/api/auth/session', {
-      method: 'POST'
-    });
+    const data = await communityFetch(
+      '/api/auth/session',
+      {
+        method: 'POST'
+      }
+    );
 
     if (!data?.user) {
       throw new Error(
         'Community session response did not contain a user.'
+      );
+    }
+
+    if (data.sessionToken) {
+      localStorage.setItem(
+        'ecehub_session_token',
+        data.sessionToken
       );
     }
 
@@ -4079,15 +4089,12 @@ async function initializeCommunitySession() {
       communityUser
     );
 
-    // Update the already-rendered header with the
-    // freshly loaded community profile/avatar.
     updateChrome();
     updateCommunityUserUI?.();
 
     return communityUser;
 
   } catch (err) {
-
     console.error(
       'Failed to initialize community session:',
       err
