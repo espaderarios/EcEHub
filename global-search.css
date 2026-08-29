@@ -1,0 +1,134 @@
+/* EcE Hub — Global live search */
+.search { position: relative; }
+
+.search-results {
+  position: absolute;
+  z-index: 1000;
+  top: calc(100% + 10px);
+  left: 0;
+  right: 0;
+  min-width: 520px;
+  max-height: min(70vh, 620px);
+  overflow: auto;
+  border: 1px solid var(--border, rgba(255,255,255,.12));
+  border-radius: 16px;
+  background: var(--card, #111827);
+  box-shadow: 0 20px 55px rgba(0,0,0,.28);
+  backdrop-filter: blur(18px);
+}
+
+.global-search-dropdown-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 16px;
+  font-size: 12px;
+  color: var(--muted, #8d99ad);
+  border-bottom: 1px solid var(--border, rgba(255,255,255,.08));
+}
+
+.global-search-group { padding: 7px 0; }
+.global-search-group + .global-search-group { border-top: 1px solid var(--border, rgba(255,255,255,.07)); }
+
+.global-search-group-title {
+  padding: 7px 16px 5px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted, #8d99ad);
+}
+
+.global-search-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.global-search-row:hover { background: rgba(127,127,127,.08); }
+.global-search-row-icon {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 10px;
+  background: rgba(127,127,127,.10);
+  font-size: 17px;
+}
+.global-search-row-icon img { width: 100%; height: 100%; object-fit: cover; }
+.global-search-row-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.global-search-row-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.global-search-row-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted, #8d99ad); font-size: 11px; }
+.global-search-row-type { flex: 0 0 auto; color: var(--muted, #8d99ad); font-size: 10px; }
+.global-search-status { padding: 22px 18px; color: var(--muted, #8d99ad); font-size: 13px; }
+.global-search-more { padding: 10px 16px 14px; text-align: center; color: var(--muted, #8d99ad); font-size: 11px; }
+
+.global-search-page { max-width: 1180px; margin: 0 auto; padding-bottom: 48px; }
+.global-search-page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 22px; }
+.global-search-eyebrow { margin-bottom: 6px; font-size: 11px; font-weight: 800; letter-spacing: .12em; color: var(--muted, #8d99ad); }
+.global-search-page-header h1 { margin: 0 0 6px; font-size: clamp(26px, 4vw, 38px); }
+.global-search-page-header p { margin: 0; color: var(--muted, #8d99ad); }
+.global-search-page-header p strong { color: inherit; }
+
+.global-search-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; }
+.global-search-filters button {
+  border: 1px solid var(--border, rgba(255,255,255,.10));
+  background: transparent;
+  color: inherit;
+  border-radius: 999px;
+  padding: 8px 13px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.global-search-filters button:hover { background: rgba(127,127,127,.08); }
+.global-search-filters button.active { background: var(--primary, #315efb); color: #fff; border-color: transparent; }
+
+.global-search-section { margin: 0 0 30px; }
+.global-search-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.global-search-section-head > div { display: flex; align-items: center; gap: 9px; }
+.global-search-section-head h2 { margin: 0; font-size: 17px; }
+.global-search-section-head > span { color: var(--muted, #8d99ad); font-size: 12px; }
+.global-search-section-icon { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; background: rgba(127,127,127,.10); }
+.global-search-results-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+
+.global-search-card { min-width: 0; overflow: hidden; }
+.global-search-card-hit { display: block; width: 100%; padding: 17px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.global-search-card-hit:hover { background: rgba(127,127,127,.045); }
+.global-search-card-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.global-search-card-icon { width: 38px; height: 38px; display: grid; place-items: center; overflow: hidden; border-radius: 10px; background: rgba(127,127,127,.10); font-size: 18px; }
+.global-search-card-icon img { width: 100%; height: 100%; object-fit: cover; }
+.global-search-card-kind { font-size: 10px; color: var(--muted, #8d99ad); }
+.global-search-card h3 { margin: 0 0 6px; font-size: 15px; line-height: 1.35; }
+.global-search-card-meta { color: var(--muted, #8d99ad); font-size: 11px; }
+.global-search-card p { margin: 10px 0 0; color: var(--muted, #8d99ad); font-size: 12px; line-height: 1.5; }
+.global-search-card-actions { display: flex; gap: 8px; padding: 0 17px 17px; }
+
+.global-search-loading, .global-search-empty { padding: 40px; text-align: center; }
+.global-search-empty-icon { font-size: 28px; margin-bottom: 8px; opacity: .7; }
+.global-search-empty h2 { margin: 0 0 7px; }
+.global-search-empty p { margin: 0; color: var(--muted, #8d99ad); }
+.global-search-spinner { display: inline-block; width: 15px; height: 15px; margin-right: 8px; vertical-align: -3px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: global-search-spin .7s linear infinite; }
+@keyframes global-search-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 900px) {
+  .global-search-results-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .search-results { min-width: min(520px, calc(100vw - 30px)); }
+}
+
+@media (max-width: 620px) {
+  .global-search-results-grid { grid-template-columns: 1fr; }
+  .global-search-page-header { align-items: flex-start; flex-direction: column; }
+  .search-results { position: fixed; top: 70px; left: 12px; right: 12px; min-width: 0; width: auto; max-height: 65vh; }
+  .global-search-row-type { display: none; }
+}
