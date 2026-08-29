@@ -504,29 +504,64 @@ async function unlinkGoogleAccount() {
 }
 
 async function handleGoogleLinkCallback() {
-  const url = new URL(window.location.href);
+  const url =
+    new URL(
+      window.location.href
+    );
 
   const linked =
-    url.searchParams.get('community_google_linked');
+    url.searchParams.get(
+      'community_google_linked'
+    );
 
   const error =
-    url.searchParams.get('community_google_error');
+    url.searchParams.get(
+      'community_google_error'
+    );
 
+  /*
+   * --------------------------------------------------
+   * GOOGLE LINK SUCCESS
+   * --------------------------------------------------
+   */
   if (linked === '1') {
     try {
       /*
-       * Google OAuth succeeded on the backend.
+       * The Worker creates a fresh session token
+       * after successfully linking Google.
        *
-       * IMPORTANT:
-       * communityFetch() already parses the JSON response.
-       * It returns the parsed object, NOT a native Response.
+       * Recover it from the temporary callback URL.
        */
-      const result = await communityFetch(
-        '/api/users/me',
-        {
-          method: 'GET'
-        }
-      );
+      const callbackToken =
+        url.searchParams.get(
+          'community_session'
+        );
+
+      if (callbackToken) {
+        localStorage.setItem(
+          'ecehub_session_token',
+          callbackToken
+        );
+
+        console.log(
+          'Google callback session token stored.'
+        );
+      }
+
+      /*
+       * Now fetch /api/users/me.
+       *
+       * communityFetch() will automatically send:
+       *
+       * Authorization: Bearer <session token>
+       */
+      const result =
+        await communityFetch(
+          '/api/users/me',
+          {
+            method: 'GET'
+          }
+        );
 
       console.log(
         'Google-link profile refresh response:',
@@ -540,38 +575,41 @@ async function handleGoogleLinkCallback() {
       }
 
       /*
-       * Replace the old guest user in memory with
-       * the freshly fetched Google-linked user.
+       * Replace the old guest user in memory.
        */
       communityUser =
-        normalizeCommunityUser(result.user);
+        normalizeCommunityUser(
+          result.user
+        );
 
-      communityReady = true;
+      communityReady =
+        true;
 
       console.log(
         'Google account linked. Refreshed user:',
         communityUser
       );
 
-      /*
-       * This should now be true if the backend returned
-       * google_sub/googleSub.
-       */
       console.log(
         'Google linked:',
         isGoogleLinked()
       );
 
       /*
-       * Remove the OAuth callback parameter.
+       * Remove BOTH OAuth callback parameters.
        */
       url.searchParams.delete(
         'community_google_linked'
       );
 
+      url.searchParams.delete(
+        'community_session'
+      );
+
       window.history.replaceState(
         {},
         document.title,
+
         url.pathname +
           (
             url.searchParams.toString()
@@ -582,13 +620,16 @@ async function handleGoogleLinkCallback() {
       );
 
       /*
-       * Refresh the header/profile UI.
+       * Refresh UI.
        */
       updateCommunityHeader();
+
       updateCommunityUserUI();
 
+      updateChrome();
+
       /*
-       * Re-render the current page.
+       * Re-render current page.
        */
       render();
 
@@ -606,7 +647,8 @@ async function handleGoogleLinkCallback() {
 
       toast(
         `Google account was linked, but the profile could not be refreshed: ${
-          err?.message || 'Unknown error'
+          err?.message ||
+          'Unknown error'
         }`
       );
 
@@ -614,6 +656,11 @@ async function handleGoogleLinkCallback() {
     }
   }
 
+  /*
+   * --------------------------------------------------
+   * GOOGLE LINK ERROR
+   * --------------------------------------------------
+   */
   if (error) {
     console.error(
       'Google linking failed:',
@@ -631,6 +678,7 @@ async function handleGoogleLinkCallback() {
     window.history.replaceState(
       {},
       document.title,
+
       url.pathname +
         (
           url.searchParams.toString()
@@ -3979,34 +4027,70 @@ function showAIAssistantUnavailable() {
   console.log('AI unavailable modal added to DOM');
 }
 
-async function communityFetch(path, options = {}) {
-  const url = `${COMMUNITY_API_BASE}${path}`;
+async function communityFetch(
+  path,
+  options = {}
+) {
+  const url =
+    `${COMMUNITY_API_BASE}${path}`;
 
-  const response = await fetch(url, {
-    ...options,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers || {})
-    }
-  });
+  const headers = {
+    'Content-Type':
+      'application/json',
+
+    ...(options.headers || {})
+  };
+
+  /*
+   * Use the frontend-held session token.
+   */
+  const sessionToken =
+    localStorage.getItem(
+      'ecehub_session_token'
+    );
+
+  if (sessionToken) {
+    headers.Authorization =
+      `Bearer ${sessionToken}`;
+  }
+
+  const response =
+    await fetch(
+      url,
+      {
+        ...options,
+
+        /*
+         * Keep this enabled so existing cookie
+         * sessions continue to work where supported.
+         */
+        credentials: 'include',
+
+        headers
+      }
+    );
 
   let data = null;
 
   try {
-    data = await response.json();
+    data =
+      await response.json();
   } catch {
     data = {};
   }
 
   if (!response.ok) {
-    const error = new Error(
-      data?.error ||
-      `Community API request failed (${response.status}).`
-    );
+    const error =
+      new Error(
+        data?.error ||
+        `Community API request failed (${response.status}).`
+      );
 
-    error.status = response.status;
-    error.data = data;
+    error.status =
+      response.status;
+
+    error.data =
+      data;
 
     throw error;
   }
@@ -4059,12 +4143,13 @@ async function loadCommunityFlashcards() {
 
 async function initializeCommunitySession() {
   try {
-    const data = await communityFetch(
-      '/api/auth/session',
-      {
-        method: 'POST'
-      }
-    );
+    const data =
+      await communityFetch(
+        '/api/auth/session',
+        {
+          method: 'POST'
+        }
+      );
 
     if (!data?.user) {
       throw new Error(
@@ -4072,7 +4157,12 @@ async function initializeCommunitySession() {
       );
     }
 
-    if (data.sessionToken) {
+    /*
+     * Save the session token returned by the Worker.
+     */
+    if (
+      data.sessionToken
+    ) {
       localStorage.setItem(
         'ecehub_session_token',
         data.sessionToken
@@ -4080,16 +4170,27 @@ async function initializeCommunitySession() {
     }
 
     communityUser =
-      normalizeCommunityUser(data.user);
+      normalizeCommunityUser(
+        data.user
+      );
 
-    communityReady = true;
+    communityReady =
+      true;
 
     console.log(
       'Community session initialized:',
       communityUser
     );
 
+    console.log(
+      'Community session type:',
+      data.existing
+        ? 'existing'
+        : 'new'
+    );
+
     updateChrome();
+
     updateCommunityUserUI?.();
 
     return communityUser;
@@ -4100,8 +4201,11 @@ async function initializeCommunitySession() {
       err
     );
 
-    communityUser = null;
-    communityReady = false;
+    communityUser =
+      null;
+
+    communityReady =
+      false;
 
     updateChrome();
 
