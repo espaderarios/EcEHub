@@ -1,56 +1,39 @@
 const KEY = 'eceHubDataV3';
 const THEME_KEY = 'eceHubTheme';
 
-/* Minimal line icons (SVG Repo–style, currentColor) */
-const ICO = {
-  back: `<svg class="ico" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M15 18l-6-6 6-6"/></svg>`,
-  edit: `<svg class="ico" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>`,
-  plus: `<svg class="ico" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>`,
-  trash: `<svg class="ico" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>`,
-  folder: `<svg class="ico" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg>`
+const AI_FLASHCARD_API = {
+  baseURL: 'https://ecehub-backend.onrender.com',
+  generateEndpoint: '/api/ai/flashcards/generate'
 };
 
+// ============================================================
+// EcE Hub Community API
+// ============================================================
+
+const COMMUNITY_API_BASE =
+  'https://ecehub-community.ecehub-ai-backend.workers.dev';
+
+const COMMUNITY_API = {
+  session: `${COMMUNITY_API_BASE}/api/auth/session`,
+  profile: `${COMMUNITY_API_BASE}/api/users/me`,
+  usernameCheck: `${COMMUNITY_API_BASE}/api/users/check-username`,
+  flashcards: `${COMMUNITY_API_BASE}/api/flashcards`,
+  workspace: `${COMMUNITY_API_BASE}/api/workspace`
+};
+
+window.AIassistant = {
+  Available: false
+};
 
 const seed = {
   profile: { name: 'Student', course: 'EcE Learner' },
-  classes: [
-    { id: 'c1', name: 'Circuits 101', category: 'Engineering', sets: 24, cards: 156, progress: 75 },
-    { id: 'c2', name: 'Electronics', category: 'Engineering', sets: 18, cards: 98, progress: 60 },
-    { id: 'c3', name: 'Digital Systems', category: 'Engineering', sets: 20, cards: 120, progress: 80 },
-    { id: 'c4', name: 'Control Systems', category: 'Engineering', sets: 15, cards: 75, progress: 45 }
-  ],
+  classes: [],
   folders: [],
   books: [],
-  sets: [
-    { id: 's1', title: "Ohm's Law", subject: 'Circuits 101', cards: [['What is Ohm’s Law?', 'V = IR'], ['Unit of resistance?', 'Ohm (Ω)'], ['If R increases at constant V?', 'Current decreases.']] },
-    { id: 's2', title: 'Logic Gates', subject: 'Digital Systems', cards: [['AND gate output?', '1 only when all inputs are 1.'], ['OR gate output?', '1 when at least one input is 1.'], ['NOT gate?', 'Inverts the input.']] },
-    { id: 's3', title: 'Transistors', subject: 'Electronics', cards: [['What are BJT terminals?', 'Base, collector, emitter.'], ['What controls a BJT?', 'Base current.']] }
-  ],
-  notes: [
-    { id: 'n1', title: "Kirchhoff's Laws", subject: 'Circuits 101', body: 'KCL: the algebraic sum of currents entering a node is zero. KVL: the algebraic sum of voltages around a closed loop is zero.', updated: 'Today' },
-    { id: 'n2', title: 'Binary Number System', subject: 'Digital Systems', body: 'Review binary-to-decimal conversion, complements, Boolean algebra, and basic logic identities.', updated: 'Yesterday' }
-  ],
-  quizzes: [
-    {
-      id: 'q1', title: 'Circuits Basics', subject: 'Circuits 101', questions: [
-        { q: 'Which law relates voltage, current and resistance?', options: ['Newton’s Law', 'Ohm’s Law', 'Faraday’s Law', 'Coulomb’s Law'], answer: 1 },
-        { q: 'What is the SI unit of resistance?', options: ['Volt', 'Ampere', 'Ohm', 'Watt'], answer: 2 },
-        { q: 'In a series circuit, current is…', options: ['the same through each element', 'always zero', 'different everywhere', 'undefined'], answer: 0 }
-      ]
-    },
-    {
-      id: 'q2', title: 'Logic Gates', subject: 'Digital Systems', questions: [
-        { q: 'Which gate inverts an input?', options: ['AND', 'OR', 'NOT', 'XOR'], answer: 2 },
-        { q: 'An AND gate outputs 1 when…', options: ['any input is 1', 'all inputs are 1', 'all inputs are 0', 'inputs differ'], answer: 1 }
-      ]
-    }
-  ],
-  activity: [
-    { text: 'Completed quiz: Circuits Basics', sub: 'Score: 85%', time: '2h ago' },
-    { text: "Studied: Ohm's Law Set", sub: '12 new cards reviewed', time: '5h ago' },
-    { text: 'Downloaded: Transistor.pdf', sub: 'Electronics • 2.4 MB', time: '1d ago' },
-    { text: 'Created new set: Logic Gates', sub: 'Digital Systems', time: '2d ago' }
-  ]
+  sets: [],
+  notes: [],
+  quizzes: [],
+  activity: []
 };
 
 const searchableRoutes = [
@@ -344,6 +327,8 @@ const BUILTIN_FLASHCARDS = [
   }
 ];
 
+let communityUser = null;
+let communityReady = false;
 let sourceBooks = [];
 let libraryFolderId = null;
 let data = load();
@@ -355,6 +340,278 @@ let timerSeconds = 25 * 60;
 
 window.builtinStudyState = null;
 /* ---------- persistence & helpers ---------- */
+function isGoogleLinked() {
+  return Boolean(
+    communityUser &&
+    communityUser.googleSub &&
+    String(communityUser.googleSub).trim() !== ''
+  );
+}
+
+function isGuestUser() {
+  return !isGoogleLinked();
+}
+
+function getUserIdentityLabel() {
+  if (isGoogleLinked()) {
+    return 'Google account linked';
+  }
+
+  return 'Guest account';
+}
+
+function normalizeCommunityUser(user) {
+  if (!user) return null;
+
+  const googleSub =
+    user.googleSub ??
+    user.google_sub ??
+    null;
+
+  const googleEmail =
+    user.googleEmail ??
+    user.google_email ??
+    '';
+
+  const googleEmailVerified =
+    user.googleEmailVerified ??
+    user.google_email_verified ??
+    false;
+
+  return {
+    ...user,
+
+    googleSub:
+      googleSub !== null &&
+      googleSub !== undefined &&
+      String(googleSub).trim() !== ''
+        ? String(googleSub)
+        : null,
+
+    googleEmail:
+      googleEmail
+        ? String(googleEmail)
+        : '',
+
+    googleEmailVerified:
+      Boolean(
+        googleEmailVerified === true ||
+        googleEmailVerified === 1 ||
+        googleEmailVerified === '1'
+      )
+  };
+}
+
+function linkGoogleAccount() {
+  if (!communityUser) {
+    toast('Your guest session is still loading.');
+    return;
+  }
+
+  if (isGoogleLinked()) {
+    toast('Your Google account is already linked.');
+    return;
+  }
+
+  const confirmed = confirm(
+    'Link your Google account to EcE Hub?\n\n' +
+    'Your current guest account will be kept. ' +
+    'Your progress and saved flashcards will remain associated with this account.'
+  );
+
+  if (!confirmed) return;
+
+  window.location.href =
+    `${COMMUNITY_API_BASE}/api/auth/google/start`;
+}
+
+async function unlinkGoogleAccount() {
+  if (!communityUser) {
+    toast('Your community session is still loading.');
+    return;
+  }
+
+  if (!isGoogleLinked()) {
+    toast('No Google account is linked.');
+    return;
+  }
+
+  const email =
+    communityUser.googleEmail ||
+    'your Google account';
+
+  const confirmed = confirm(
+    `Unlink ${email} from your EcE Hub account?\n\n` +
+    'Your EcE Hub account, flashcards, workspace, and study progress will NOT be deleted.\n\n' +
+    'You can link a Google account again later.'
+  );
+
+  if (!confirmed) return;
+
+  try {
+    /*
+     * communityFetch() already parses JSON.
+     * It does NOT return the native Response object.
+     */
+    const result = await communityFetch(
+      '/api/auth/google/unlink',
+      {
+        method: 'POST'
+      }
+    );
+
+    if (!result?.ok || !result?.user) {
+      throw new Error(
+        result?.error ||
+        'Failed to unlink Google account.'
+      );
+    }
+
+    /*
+     * The unlink endpoint already gives us
+     * the updated user, so use it directly.
+     */
+    communityUser =
+      normalizeCommunityUser(result.user);
+
+    communityReady = true;
+
+    console.log(
+      'Google account unlinked:',
+      communityUser
+    );
+
+    render();
+
+    toast(
+      'Google account unlinked successfully.'
+    );
+
+  } catch (error) {
+    console.error(
+      'Google unlink failed:',
+      error
+    );
+
+    toast(
+      `Failed to unlink Google account: ${error.message}`
+    );
+  }
+}
+
+async function handleGoogleLinkCallback() {
+  const url = new URL(window.location.href);
+
+  const linked =
+    url.searchParams.get('community_google_linked');
+
+  const error =
+    url.searchParams.get('community_google_error');
+
+  if (linked === '1') {
+    try {
+      /*
+       * Google OAuth succeeded on the backend.
+       * Fetch the current user again so the frontend gets
+       * the newly linked Google identity from D1.
+       */
+    const result = await communityFetch(
+        '/api/users/me',
+        {
+          method: 'GET'
+        }
+      );
+
+      if (!result?.user) {
+        throw new Error(
+          'Failed to refresh community profile.'
+        );
+      }
+
+      communityUser =
+        normalizeCommunityUser(result.user);
+
+      communityReady = true;
+
+      console.log(
+        'Google account linked. Refreshed user:',
+        communityUser
+      );
+
+      toast(
+        'Google account linked successfully.'
+      );
+
+      /*
+       * Remove the OAuth callback parameter from
+       * the browser URL.
+       */
+      url.searchParams.delete(
+        'community_google_linked'
+      );
+
+      window.history.replaceState(
+        {},
+        document.title,
+        url.pathname +
+          (url.searchParams.toString()
+            ? `?${url.searchParams.toString()}`
+            : '') +
+          url.hash
+      );
+
+      /*
+       * Re-render the current page so Profile immediately
+       * changes from Guest account → Google account linked.
+       */
+      render();
+
+      return true;
+
+    } catch (err) {
+      console.error(
+        'Failed to refresh Google-linked community user:',
+        err
+      );
+
+      toast(
+        'Google account was linked, but the profile could not be refreshed. Please reload the page.'
+      );
+
+      return false;
+    }
+  }
+
+  if (error) {
+    console.error(
+      'Google linking failed:',
+      error
+    );
+
+    toast(
+      `Google account linking failed: ${error}`
+    );
+
+    url.searchParams.delete(
+      'community_google_error'
+    );
+
+    window.history.replaceState(
+      {},
+      document.title,
+      url.pathname +
+        (url.searchParams.toString()
+          ? `?${url.searchParams.toString()}`
+          : '') +
+        url.hash
+    );
+
+    return false;
+  }
+
+  return false;
+}
+
 function load() {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY));
@@ -432,22 +689,60 @@ function toggleTheme() {
   if (saved === 'dark') applyTheme(true);
 })();
 
-/* ---------- header / guest card sync ---------- */
 function updateChrome() {
-  const name = data.profile.name || 'Student';
-  const course = data.profile.course || 'EcE Learner';
-  const headerName = document.querySelector('#headerName');
-  if (headerName) headerName.textContent = name;
-  const headerCourse = document.querySelector('.profile span');
-  if (headerCourse) headerCourse.textContent = course;
-  const avatar = document.querySelector('.avatar');
-  if (avatar) {
-    avatar.childNodes[0].textContent = name.charAt(0).toUpperCase();
+  const usernameEl =
+    document.getElementById('headerUsername');
+
+  const avatarEl =
+    document.getElementById('communityProfileAvatar');
+
+  if (!communityUser) {
+
+    if (usernameEl) {
+      usernameEl.textContent = '';
+    }
+
+    if (avatarEl) {
+      avatarEl.innerHTML = `
+        <span class="profile-avatar-fallback">
+          ?
+        </span>
+      `;
+    }
+
+    return;
   }
-  const guestStrong = document.querySelector('.guest-card strong');
-  if (guestStrong) guestStrong.textContent = name;
-  const guestIcon = document.querySelector('.guest-icon');
-  if (guestIcon) guestIcon.textContent = name.charAt(0).toUpperCase();
+
+  const displayName =
+    communityUser.displayName ||
+    communityUser.username ||
+    'Student';
+
+  const username =
+    communityUser.username ||
+    '';
+
+  if (usernameEl) {
+    usernameEl.textContent =
+      username ? `@${username}` : '';
+  }
+
+  if (avatarEl) {
+    avatarEl.innerHTML =
+      communityProfileAvatar();
+  }
+
+  const profileButton =
+    document.getElementById('communityProfileButton');
+
+  if (profileButton) {
+    profileButton.setAttribute(
+      'aria-label',
+      `Edit profile: ${displayName}${
+        username ? ` (@${username})` : ''
+      }`
+    );
+  }
 }
 
 function updateSearchVisibility() {
@@ -502,6 +797,8 @@ function render() {
     sets: setsView,
     flashcards: flashcardsView,
 
+    'ai-flashcard-maker': aiFlashcardMakerView,
+
     'builtin-flashcards': () => {
       if (window.builtinStudyState) {
         return builtinStudyView();
@@ -530,6 +827,15 @@ function go(r) {
   closeSidebar();
   render();
   window.scrollTo(0, 0);
+}
+
+function escapeHTML(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 function setsForClass(cls) {
@@ -806,7 +1112,7 @@ function renderLibrary(books) {
                     src="${thumbnail}" 
                     alt="${book.title}"
                     loading="lazy"
-                    onerror="this.src='assets/pdf-placeholder.png'"
+                    onerror="this.src='assets/pdf-placeholder.svg';"
                 >
             </div>
 
@@ -925,14 +1231,27 @@ function libraryView() {
         `📁 ${esc(folder.name)}`,
         `${books.length} ${books.length === 1 ? 'book' : 'books'} in this folder.`,
         `
-          <button type="button" class="btn btn-back" data-action="back-library">
-            ${ICO.back}<span class="label-back-library">Back</span>
+          <button
+            type="button"
+            class="btn"
+            data-action="back-library">
+            ← Library
           </button>
-          <button type="button" class="btn btn-secondary" data-action="edit-library-folder" data-id="${folder.id}">
-            ${ICO.edit}<span class="label-edit-library">Edit Folder</span>
+
+          <button
+            type="button"
+            class="btn"
+            data-action="edit-library-folder"
+            data-id="${folder.id}">
+            Edit Folder
           </button>
-          <button type="button" class="btn primary" data-action="add-book-to-folder" data-id="${folder.id}">
-            ${ICO.plus}<span class="label-add-book">Add Book</span>
+
+          <button
+            type="button"
+            class="btn primary"
+            data-action="add-book-to-folder"
+            data-id="${folder.id}">
+            + Add Book
           </button>
         `
       ) +
@@ -1003,7 +1322,7 @@ function libraryView() {
                         src="${getFolderThumbnail(folder.id)}"
                         alt="${esc(folder.name)}"
                         loading="lazy"
-                        onerror="this.onerror=null; this.src='assets/pdf-placeholder.png';"
+                        onerror="this.onerror=null; this.src='assets/pdf-placeholder.svg';"
                     >
                 </div>
 
@@ -1101,7 +1420,7 @@ function renderLibraryBook(book) {
                     src="${thumbnail}"
                     alt="${esc(book.title)}"
                     loading="lazy"
-                    onerror="this.onerror=null; this.src='assets/pdf-placeholder.png';"
+                    onerror="this.onerror=null; this.src='assets/pdf-placeholder.svg';"
                 >
             </div>
 
@@ -1187,7 +1506,7 @@ function renderFolderBookCard(book) {
                     src="${thumbnail}"
                     alt="${esc(book.title)}"
                     loading="lazy"
-                    onerror="this.onerror=null; this.src='assets/pdf-placeholder.png';"
+                    onerror="this.onerror=null; this.src='assets/pdf-placeholder.svg';"
                 >
             </div>
 
@@ -1255,7 +1574,7 @@ function renderBookCard(book) {
                     src="${thumbnail}"
                     alt="${esc(book.title)}"
                     loading="lazy"
-                    onerror="this.onerror=null; this.src='assets/pdf-placeholder.png';"
+                    onerror="this.onerror=null; this.src='assets/pdf-placeholder.svg';"
                 >
             </div>
 
@@ -1607,42 +1926,165 @@ function builtinStudyView() {
 function flashcardsView() {
   if (!window.studyState) {
     return (
-      pageTitle('Flashcards', 'Choose a study set to begin.') +
-      `<div class="grid set-grid">${data.sets.map(s =>
-        `<div class="card set-card">
-          <h3>${esc(s.title)}</h3>
-          <p>${esc(s.subject)}</p>
-          <div class="set-meta">${s.cards.length} cards</div>
-          <button class="btn primary" style="margin-top:16px" data-action="study-set" data-id="${s.id}">Start studying</button>
-        </div>`
-      ).join('')}</div>`
+      pageTitle(
+        'Flashcards',
+        'Choose a study set to begin.'
+      ) +
+
+      `<div class="flashcards-actions">
+        <button
+          type="button"
+          class="btn primary"
+          data-action="open-ai-flashcard-maker">
+          ✨ AI Flashcard Maker
+        </button>
+      </div>` +
+
+      `<div class="grid set-grid">
+        ${(data.sets || []).map(s => `
+          <div class="card set-card">
+
+            <h3>${esc(s.title || 'Untitled Study Set')}</h3>
+
+            <p>${esc(s.subject || '')}</p>
+
+            <div class="set-meta">
+              ${(s.cards || []).length} cards
+            </div>
+
+            <button
+              type="button"
+              class="btn primary"
+              style="margin-top:16px"
+              data-action="study-set"
+              data-id="${esc(s.id)}">
+              Start studying
+            </button>
+
+            <div class="set-card-actions">
+
+              <button
+                type="button"
+                class="btn"
+                data-action="edit-set"
+                data-id="${esc(s.id)}">
+                ✏️ Edit
+              </button>
+
+              <button
+                type="button"
+                class="btn danger"
+                data-action="delete-set"
+                data-id="${esc(s.id)}">
+                🗑️ Delete
+              </button>
+
+            </div>
+
+          </div>
+        `).join('')}
+      </div>`
     );
   }
 
-  const s = data.sets.find(x => x.id === window.studyState.setId);
+  const s =
+    data.sets.find(
+      x => x.id === window.studyState.setId
+    );
+
   if (!s || !s.cards.length) {
+
     window.studyState = null;
-    return pageTitle('Flashcards', 'Set not found or empty.') +
-      `<div class="card empty">This study set no longer exists. Choose another set.</div>`;
+
+    return (
+      pageTitle(
+        'Flashcards',
+        'Set not found or empty.'
+      ) +
+
+      `<div class="card empty">
+        This study set no longer exists.
+        Choose another set.
+      </div>`
+    );
   }
 
-  const card = s.cards[window.studyState.index];
-  const shown = window.studyState.revealed;
-  return `<div class="flash-study">
-    ${pageTitle('Flashcards', `${esc(s.title)} • Card ${window.studyState.index + 1} of ${s.cards.length}`,
-      `<button class="btn" data-action="stop-study">Exit</button>`)}
-    <div class="card flash-card" data-action="flip-card">
-      <div>
-        <div class="term">${esc(shown ? card[1] : card[0])}</div>
-        <div class="hint">${shown ? 'Answer' : 'Click to reveal answer'}</div>
+  const card =
+    s.cards[window.studyState.index];
+
+  const shown =
+    window.studyState.revealed;
+
+  return `
+    <div class="flash-study">
+
+      ${pageTitle(
+        'Flashcards',
+        `${esc(s.title)} • Card ${
+          window.studyState.index + 1
+        } of ${s.cards.length}`,
+
+        `<button
+          class="btn"
+          data-action="stop-study">
+          Exit
+        </button>`
+      )}
+
+      <div
+        class="card flash-card"
+        data-action="flip-card">
+
+        <div>
+
+          <div class="term">
+            ${esc(
+              shown
+                ? card[1]
+                : card[0]
+            )}
+          </div>
+
+          <div class="hint">
+            ${
+              shown
+                ? 'Answer'
+                : 'Click to reveal answer'
+            }
+          </div>
+
+        </div>
+
       </div>
+
+      <div class="study-controls">
+
+        <button
+          class="btn"
+          data-action="prev-card">
+          ← Previous
+        </button>
+
+        <button
+          class="btn primary"
+          data-action="flip-card">
+          ${
+            shown
+              ? 'Hide answer'
+              : 'Reveal answer'
+          }
+        </button>
+
+        <button
+          class="btn"
+          data-action="next-card">
+          Next →
+        </button>
+
+      </div>
+
     </div>
-    <div class="study-controls">
-      <button class="btn" data-action="prev-card">← Previous</button>
-      <button class="btn primary" data-action="flip-card">${shown ? 'Hide answer' : 'Reveal answer'}</button>
-      <button class="btn" data-action="next-card">Next →</button>
-    </div>
-  </div>`;
+  `;
 }
 
 function notesView() {
@@ -1680,6 +2122,10 @@ function quizzesView() {
   );
 }
 
+function escapeAttribute(value) {
+  return escapeHTML(value);
+}
+
 function toolsView() {
   const mm = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
   const ss = String(timerSeconds % 60).padStart(2, '0');
@@ -1711,13 +2157,192 @@ function toolsView() {
 }
 
 function profileView() {
+  const user = communityUser;
+
+  if (!user) {
+    return (
+      pageTitle(
+        'Profile',
+        'Your EcE Hub account information.'
+      ) +
+      `
+        <div class="card profile-card">
+          <h2>Loading profile...</h2>
+
+          <p class="profile-muted">
+            Connecting to your EcE Hub account.
+          </p>
+        </div>
+      `
+    );
+  }
+
+  const displayName =
+    user.displayName ||
+    user.username ||
+    'Student';
+
+  const initial =
+    displayName
+      .trim()
+      .charAt(0)
+      .toUpperCase() || 'S';
+
+  const googleLinked = isGoogleLinked();
+
   return (
-    pageTitle('Profile', 'Your EcE Hub account information.') +
-    `<div class="card">
-      <h2>${esc(data.profile.name)}</h2>
-      <p style="color:var(--muted)">${esc(data.profile.course)}</p>
-      <button class="btn primary" data-action="edit-profile">Edit profile</button>
-    </div>`
+    pageTitle(
+      'Profile',
+      'Manage your EcE Hub account.'
+    ) +
+
+    `
+      <div class="card profile-card">
+
+        <!-- PROFILE HEADER -->
+
+        <div class="profile-header">
+
+          <div class="profile-avatar">
+            ${
+              user.avatarUrl
+                ? `
+                  <img
+                    src="${esc(user.avatarUrl)}"
+                    alt=""
+                    class="profile-avatar-image"
+                  >
+                `
+                : esc(initial)
+            }
+          </div>
+
+          <div class="profile-heading">
+
+            <h2 class="profile-name">
+              ${esc(displayName)}
+            </h2>
+
+            <div class="profile-username">
+              @${esc(user.username || 'guest')}
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <!-- ACCOUNT STATUS -->
+
+        <div class="profile-account-status">
+
+          <div class="profile-section-title">
+            Account
+          </div>
+
+          ${
+            googleLinked
+              ? `
+                <div class="profile-linked-status">
+                  ✓ Google account linked
+                </div>
+
+                ${
+                  user.googleEmail
+                    ? `
+                      <div class="profile-google-email">
+                        ${esc(user.googleEmail)}
+                      </div>
+                    `
+                    : ''
+                }
+
+                <p class="profile-description">
+                  Your EcE Hub account can now be used
+                  for cloud synchronization.
+                </p>
+              `
+              : `
+                <div class="profile-guest-status">
+                  Guest account
+                </div>
+
+                <p class="profile-description">
+                  You can use EcE Hub without linking
+                  Google. Your study progress remains
+                  stored locally until you choose to link
+                  your account.
+                </p>
+              `
+          }
+
+        </div>
+
+
+        <!-- ACCOUNT INFORMATION -->
+
+        <div class="profile-information">
+
+          <div class="profile-information-row">
+            <span>Username:</span>
+            <strong>
+              @${esc(user.username || 'guest')}
+            </strong>
+          </div>
+
+          <div class="profile-information-row">
+            <span>Display name:</span>
+            <strong>
+              ${esc(displayName)}
+            </strong>
+          </div>
+
+          <div class="profile-information-row">
+            <span>User ID:</span>
+            <span class="profile-user-id">
+              ${esc(user.id || 'guest')}
+            </span>
+          </div>
+
+        </div>
+
+
+        <!-- ACTIONS -->
+
+        <div class="profile-actions">
+
+        <button
+          type="button"
+          class="btn primary"
+          data-action="edit-profile"
+        >
+          Edit profile
+        </button>
+
+          ${
+            googleLinked
+              ? `
+                <button
+                  class="btn"
+                  data-action="unlink-google"
+                >
+                  Unlink Google account
+                </button>
+              `
+              : `
+                <button
+                  class="btn"
+                  data-action="link-google"
+                >
+                  Link Google account
+                </button>
+              `
+          }
+
+        </div>
+
+      </div>
+    `
   );
 }
 
@@ -2192,8 +2817,2003 @@ function studySet(id) {
   go('flashcards');
 }
 
+async function generateAIFlashcards() {
+
+  console.log('=== AI FLASHCARD GENERATOR STARTED ===');
+
+  const status =
+    document.querySelector('#aiFlashcardStatus');
+
+  const button =
+    document.querySelector(
+      '[data-action="generate-ai-flashcards"]'
+    );
+
+  const bookId =
+    document.querySelector('#aiFlashcardBook')?.value || '';
+
+  const book =
+    data.books?.find(b => b.id === bookId);
+
+  console.log('Book ID:', bookId);
+  console.log('Selected book:', book);
+
+  // -----------------------------
+  // Validate PDF
+  // -----------------------------
+
+  if (!book) {
+
+    if (status) {
+      status.textContent =
+        'Please select a PDF from your Library.';
+    }
+
+    return;
+  }
+
+  const driveUrl =
+    book.driveUrl ||
+    book.url ||
+    '';
+
+  console.log('Drive URL:', driveUrl);
+
+  if (!driveUrl) {
+
+    if (status) {
+      status.textContent =
+        'The selected PDF does not have a Google Drive link.';
+    }
+
+    return;
+  }
+
+  // -----------------------------
+  // Chapters
+  // -----------------------------
+
+  const chapters =
+    document
+      .querySelector('#aiFlashcardChapters')
+      ?.value
+      .trim() || '';
+
+  console.log('Chapters:', chapters);
+
+  if (!chapters) {
+
+    if (status) {
+      status.textContent =
+        'Please specify the chapters.';
+    }
+
+    return;
+  }
+
+  // -----------------------------
+  // Card count
+  // -----------------------------
+
+  const count =
+    Number(
+      document.querySelector('#aiFlashcardCount')?.value || 20
+    );
+
+  console.log('Count:', count);
+
+  if (
+    !Number.isInteger(count) ||
+    count < 1 ||
+    count > 200
+  ) {
+
+    if (status) {
+      status.textContent =
+        'Please enter between 1 and 200 flashcards.';
+    }
+
+    return;
+  }
+
+  // -----------------------------
+  // Difficulty
+  // -----------------------------
+
+  const difficulty =
+    document.querySelector('#aiFlashcardDifficulty')?.value ||
+    'medium';
+
+  console.log('Difficulty:', difficulty);
+
+  // -----------------------------
+  // Instructions
+  // -----------------------------
+
+  const instructions =
+    document
+      .querySelector('#aiFlashcardInstructions')
+      ?.value
+      .trim() || '';
+
+  console.log('Instructions:', instructions);
+
+  console.log('Status element:', status);
+  console.log('Button:', button);
+
+  // -----------------------------
+  // Loading state
+  // -----------------------------
+
+  if (button) {
+    button.disabled = true;
+    button.innerHTML = '⏳ Generating...';
+  }
+
+  if (status) {
+    status.textContent =
+      'Preparing your flashcards...';
+  }
+
+  // -----------------------------
+  // Send request to backend
+  // -----------------------------
+
+  try {
+
+    console.log('Sending request to AI backend...');
+
+    const response = await fetch(
+      AI_FLASHCARD_API.baseURL +
+      AI_FLASHCARD_API.generateEndpoint,
+      {
+        method: 'POST',
+
+        headers: {
+          'Content-Type': 'application/json'
+        },
+
+        body: JSON.stringify({
+
+          driveUrl,
+
+          chapters,
+
+          cardCount: count,
+
+          difficulty,
+
+          instructions
+
+        })
+      }
+    );
+
+    console.log(
+      'Backend response:',
+      response.status
+    );
+
+    // -----------------------------
+    // Handle server error
+    // -----------------------------
+
+    if (!response.ok) {
+
+      let message =
+        `Server error (${response.status})`;
+
+      try {
+
+        const errorData =
+          await response.json();
+
+        if (errorData?.error) {
+          message = errorData.error;
+        }
+
+      } catch (_) {}
+
+      throw new Error(message);
+    }
+
+    // -----------------------------
+    // Parse response
+    // -----------------------------
+
+    const result =
+      await response.json();
+
+    console.log(
+      'AI result:',
+      result
+    );
+
+    // -----------------------------
+    // Validate AI response
+    // -----------------------------
+
+    if (
+      !result ||
+      !Array.isArray(result.cards)
+    ) {
+
+      throw new Error(
+        'The AI returned an invalid flashcard response.'
+      );
+    }
+
+    // -----------------------------
+    // Success
+    // -----------------------------
+
+    if (status) {
+
+      status.textContent =
+        `${result.cards.length} flashcards generated.`;
+
+    }
+
+    // -----------------------------
+    // Show preview
+    // -----------------------------
+
+  closeAIFlashcardGenerator();
+
+  showAIGeneratedFlashcardPreview(
+    result,
+    {
+      title:
+        result.title ||
+        book.title ||
+        'AI Generated Flashcards',
+
+      url:
+        driveUrl
+    }
+  );
+
+  } catch (error) {
+
+    console.error(
+      'AI flashcard generation failed:',
+      error
+    );
+
+    if (status) {
+
+      status.textContent =
+        error.message ||
+        'Failed to generate flashcards.';
+
+    }
+
+  } finally {
+
+    if (button) {
+
+      button.disabled = false;
+
+      button.innerHTML =
+        '✨ Generate Flashcards';
+
+    }
+
+  }
+}
+
+function aiFlashcardMakerView() {
+  return `
+    <section class="ai-flashcard-maker">
+
+      ${pageTitle(
+        'AI Flashcard Maker',
+        'Create flashcards automatically from a Google Drive PDF.'
+      )}
+
+      <div class="card ai-flashcard-panel">
+
+        <div class="ai-flashcard-field">
+          <label>Select PDF</label>
+
+          <div class="ai-pdf-search">
+            <span class="search-icon">⌕</span>
+
+            <input
+              type="text"
+              id="aiFlashcardBookSearch"
+              class="input"
+              placeholder="Search your PDFs..."
+              autocomplete="off"
+            >
+          </div>
+
+          <select id="aiFlashcardBook" class="input">
+            <option value="">Choose a PDF from your Library...</option>
+
+            ${(data.books || []).map(book => `
+              <option
+                value="${esc(book.id)}"
+                data-title="${esc((book.title || '').toLowerCase())}">
+                ${esc(book.title)}
+              </option>
+            `).join('')}
+          </select>
+
+          <small class="ai-flashcard-help">
+            Select a PDF from your Library.
+          </small>
+        </div>
+
+        <div class="ai-flashcard-field">
+          <label>Chapters</label>
+
+          <input
+            type="text"
+            id="aiFlashcardChapters"
+            class="input"
+            placeholder="Example: Chapters 2, 3 and 4">
+        </div>
+
+        <div class="ai-flashcard-row">
+
+          <div class="ai-flashcard-field">
+            <label>Number of cards</label>
+
+            <input
+              type="number"
+              id="aiFlashcardCount"
+              class="input"
+              value="20"
+              min="1"
+              max="100">
+          </div>
+
+          <div class="ai-flashcard-field">
+            <label>Difficulty</label>
+
+            <select id="aiFlashcardDifficulty" class="input">
+              <option value="easy">Easy</option>
+              <option value="medium" selected>Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </div>
+
+        </div>
+
+        <div class="ai-flashcard-field">
+          <label>Additional instructions</label>
+
+          <textarea
+            id="aiFlashcardInstructions"
+            class="input"
+            rows="4"
+            placeholder="Example: Focus on formulas, definitions and important concepts.">
+          </textarea>
+        </div>
+
+        <div class="ai-flashcard-actions">
+
+          <button
+            type="button"
+            class="btn"
+            data-action="back-to-flashcards">
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            class="btn primary"
+            data-action="generate-ai-flashcards">
+            ✨ Generate Flashcards
+          </button>
+
+        </div>
+
+        <div id="aiFlashcardStatus" class="ai-flashcard-status"></div>
+
+      </div>
+
+    </section>
+  `;
+}
+
+function setupAIFlashcardBookSearch() {
+  const searchInput = document.querySelector('#aiFlashcardBookSearch');
+  const bookSelect = document.querySelector('#aiFlashcardBook');
+
+  if (!searchInput || !bookSelect) {
+    console.warn('AI PDF search elements not found');
+    return;
+  }
+
+  console.log('AI PDF search initialized');
+
+  // Keep a copy of all books
+  const books = Array.isArray(data.books)
+    ? [...data.books]
+    : [];
+
+  function renderBookOptions(query = '') {
+    const selectedId = bookSelect.value;
+    const search = query.trim().toLowerCase();
+
+    const filteredBooks = books.filter(book => {
+      const title = (book.title || '').toLowerCase();
+      const author = (book.author || '').toLowerCase();
+      const course = (book.course || '').toLowerCase();
+
+      return (
+        !search ||
+        title.includes(search) ||
+        author.includes(search) ||
+        course.includes(search)
+      );
+    });
+
+    bookSelect.innerHTML = `
+      <option value="">
+        ${
+          search
+            ? `Found ${filteredBooks.length} PDF${filteredBooks.length === 1 ? '' : 's'}`
+            : 'Choose a PDF from your Library...'
+        }
+      </option>
+
+      ${filteredBooks.map(book => `
+        <option value="${esc(book.id)}">
+          ${esc(book.title || 'Untitled PDF')}
+        </option>
+      `).join('')}
+    `;
+
+    // Restore selection if it still exists
+    if (
+      selectedId &&
+      filteredBooks.some(book => book.id === selectedId)
+    ) {
+      bookSelect.value = selectedId;
+    }
+  }
+
+  searchInput.addEventListener('input', () => {
+    renderBookOptions(searchInput.value);
+  });
+
+  // Initial render
+  renderBookOptions();
+
+  console.log(
+    `AI PDF search loaded ${books.length} PDFs`
+  );
+}
+
+function showAIGeneratedFlashcardPreview(result, book) {
+
+    // Remove any previous AI preview modal
+  document
+    .querySelectorAll('.ai-flashcard-modal')
+    .forEach(modal => modal.remove());
+
+  // Prevent the page behind the modal from scrolling
+  document.body.style.overflow = 'hidden';
+
+  const cards =
+    Array.isArray(result.cards)
+      ? result.cards
+      : [];
+
+
+  const modal =
+    document.createElement('div');
+
+  modal.className =
+    'modal-overlay ai-flashcard-modal';
+
+
+  modal.innerHTML = `
+    <div class="modal-card ai-flashcard-preview">
+
+      <div class="modal-header">
+
+        <div>
+
+          <h2>✨ Generated Flashcards</h2>
+
+          <p>
+            ${escapeHTML(
+              result.title ||
+              book.title ||
+              'AI Flashcards'
+            )}
+          </p>
+
+        </div>
+
+        <button
+          type="button"
+          class="icon-btn"
+          data-preview-action="close">
+          ×
+        </button>
+
+      </div>
+
+
+      <div class="ai-generated-count">
+
+        ${cards.length}
+        flashcards generated
+
+      </div>
+
+
+      <div class="ai-preview-list">
+
+        ${cards.map((card, index) => {
+
+          const question =
+            Array.isArray(card)
+              ? card[0]
+              : card.question;
+
+          const answer =
+            Array.isArray(card)
+              ? card[1]
+              : card.answer;
+
+          return `
+
+            <div
+              class="ai-preview-card"
+              data-card-index="${index}">
+
+              <div class="ai-preview-number">
+                ${index + 1}
+              </div>
+
+              <div class="ai-preview-content">
+
+                <input
+                  class="ai-preview-question"
+                  value="${escapeAttribute(
+                    question || ''
+                  )}">
+
+                <textarea
+                  class="ai-preview-answer"
+                  rows="3">${escapeHTML(
+                    answer || ''
+                  )}</textarea>
+
+              </div>
+
+            </div>
+
+          `;
+
+        }).join('')}
+
+      </div>
+
+
+      <div class="modal-footer">
+
+        <button
+          type="button"
+          class="btn"
+          data-preview-action="close">
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          class="btn primary"
+          data-preview-action="save">
+          💾 Save as Study Set
+        </button>
+
+      </div>
+
+    </div>
+  `;
+
+
+  document.body.appendChild(modal);
+
+  /* Close when clicking the dark area outside the card */
+  modal.addEventListener('click', event => {
+
+    if (event.target === modal) {
+
+      modal.remove();
+
+      document.body.style.overflow = '';
+
+    }
+
+  });
+
+
+  modal.querySelectorAll(
+    '[data-preview-action="close"]'
+  ).forEach(button => {
+
+    button.addEventListener(
+      'click',
+      () => {
+
+        modal.remove();
+
+        document.body.style.overflow = '';
+
+      }
+    );
+
+  });
+
+
+  modal.querySelector(
+    '[data-preview-action="save"]'
+  ).addEventListener(
+    'click',
+    () => saveAIGeneratedSet(
+      modal,
+      result,
+      book
+    )
+  );
+
+}
+
+function closeAIFlashcardGenerator() {
+
+  document
+    .querySelectorAll('.ai-flashcard-generator-modal')
+    .forEach(modal => modal.remove());
+
+  document.body.style.overflow = '';
+
+}
+
+function saveAIGeneratedSet(modal, result, book) {
+
+  const cards = [];
+
+  modal.querySelectorAll(
+    '.ai-preview-card'
+  ).forEach(card => {
+
+    const question =
+      card.querySelector(
+        '.ai-preview-question'
+      )?.value.trim();
+
+    const answer =
+      card.querySelector(
+        '.ai-preview-answer'
+      )?.value.trim();
+
+    if (question && answer) {
+
+      cards.push([
+        question,
+        answer
+      ]);
+
+    }
+
+  });
+
+
+  if (!cards.length) {
+
+    alert(
+      'There are no valid flashcards to save.'
+    );
+
+    return;
+
+  }
+
+
+  const newSet = {
+
+    id:
+      'ai-' +
+      Date.now() +
+      '-' +
+      Math.random()
+        .toString(36)
+        .slice(2, 8),
+
+    title:
+      result.title ||
+      `${book.title} — AI Flashcards`,
+
+    subject:
+      result.subject ||
+      'AI Generated',
+
+    description:
+      result.description ||
+      `AI-generated flashcards from ${book.title}.`,
+
+    cards
+
+  };
+
+
+  if (!Array.isArray(data.sets)) {
+    data.sets = [];
+  }
+
+
+  data.sets.push(newSet);
+
+
+  save();
+
+
+  modal.remove();
+
+
+  route = 'sets';
+
+  render();
+
+
+  alert(
+    `${cards.length} flashcards saved as an editable study set.`
+  );
+
+}
+
+function editStudySet(set) {
+
+  const cards = Array.isArray(set.cards)
+    ? set.cards
+    : [];
+
+  const modal = document.createElement('div');
+
+  modal.className = 'modal-overlay study-set-edit-modal';
+
+  modal.innerHTML = `
+    <div class="modal-card study-set-editor">
+
+      <div class="modal-header">
+
+        <div>
+          <h2>✏️ Edit Study Set</h2>
+          <p>${escapeHTML(set.title || 'Study Set')}</p>
+        </div>
+
+        <button
+          type="button"
+          class="icon-btn"
+          data-edit-action="close">
+          ×
+        </button>
+
+      </div>
+
+      <div class="study-set-editor-body">
+
+        <label>
+          Set title
+          <input
+            type="text"
+            class="input"
+            id="editSetTitle"
+            value="${escapeAttribute(set.title || '')}">
+        </label>
+
+        <label>
+          Subject
+          <input
+            type="text"
+            class="input"
+            id="editSetSubject"
+            value="${escapeAttribute(set.subject || '')}">
+        </label>
+
+        <div class="edit-cards">
+
+          ${cards.map((card, index) => {
+
+            const question =
+              Array.isArray(card)
+                ? card[0]
+                : card.question || '';
+
+            const answer =
+              Array.isArray(card)
+                ? card[1]
+                : card.answer || '';
+
+            return `
+              <div
+                class="edit-card"
+                data-card-index="${index}">
+
+                <div class="edit-card-header">
+                  <strong>Card ${index + 1}</strong>
+
+                  <button
+                    type="button"
+                    class="btn danger edit-delete-card">
+                    🗑️
+                  </button>
+                </div>
+
+                <input
+                  type="text"
+                  class="input edit-question"
+                  value="${escapeAttribute(question)}"
+                  placeholder="Question">
+
+                <textarea
+                  class="input edit-answer"
+                  rows="3"
+                  placeholder="Answer">${escapeHTML(answer)}</textarea>
+
+              </div>
+            `;
+
+          }).join('')}
+
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+
+        <button
+          type="button"
+          class="btn"
+          data-edit-action="close">
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          class="btn primary"
+          data-edit-action="save">
+          💾 Save Changes
+        </button>
+
+      </div>
+
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  modal.querySelectorAll(
+    '[data-edit-action="close"]'
+  ).forEach(button => {
+
+    button.addEventListener('click', () => {
+      modal.remove();
+    });
+
+  });
+
+  modal.querySelectorAll(
+    '.edit-delete-card'
+  ).forEach(button => {
+
+    button.addEventListener('click', () => {
+
+      const card = button.closest('.edit-card');
+
+      if (card) {
+        card.remove();
+      }
+
+    });
+
+  });
+
+  modal.querySelector(
+    '[data-edit-action="save"]'
+  )?.addEventListener('click', () => {
+
+    const title =
+      modal.querySelector('#editSetTitle')
+        ?.value.trim();
+
+    const subject =
+      modal.querySelector('#editSetSubject')
+        ?.value.trim();
+
+    if (!title) {
+      alert('Please enter a title.');
+      return;
+    }
+
+    const updatedCards = [];
+
+    modal.querySelectorAll(
+      '.edit-card'
+    ).forEach(card => {
+
+      const question =
+        card.querySelector('.edit-question')
+          ?.value.trim();
+
+      const answer =
+        card.querySelector('.edit-answer')
+          ?.value.trim();
+
+      if (question && answer) {
+        updatedCards.push([
+          question,
+          answer
+        ]);
+      }
+
+    });
+
+    set.title = title;
+    set.subject = subject;
+    set.cards = updatedCards;
+
+    save();
+
+    modal.remove();
+
+    render();
+
+  });
+
+}
+
+function deleteStudySet(set) {
+
+  const confirmed = confirm(
+    `Delete "${set.title}"?\n\nThis cannot be undone.`
+  );
+
+  if (!confirmed) {
+    return;
+  }
+
+  data.sets = (data.sets || []).filter(
+    existingSet => existingSet.id !== set.id
+  );
+
+  save();
+
+  render();
+
+}
+
+function showAIAssistantUnavailable() {
+  console.log('Showing AI unavailable modal');
+
+  const existing = document.getElementById('aiUnavailableModal');
+
+  if (existing) {
+    existing.remove();
+  }
+
+  const modal = document.createElement('div');
+
+  modal.id = 'aiUnavailableModal';
+
+  modal.className = 'modal-overlay';
+
+  modal.innerHTML = `
+    <div class="modal ai-unavailable-modal">
+
+      <div class="modal-header">
+
+        <div>
+          <h2>AI Assistant Unavailable</h2>
+          <p>AI features are currently being updated.</p>
+        </div>
+
+        <button
+          type="button"
+          class="modal-close"
+          data-action="close-ai-unavailable"
+          aria-label="Close">
+          ×
+        </button>
+
+      </div>
+
+      <div class="modal-body">
+
+        <div class="ai-unavailable-icon">
+          ✨
+        </div>
+
+        <h3>AI Assistant is currently unavailable</h3>
+
+        <p>
+          We're currently updating the AI Assistant.
+          The AI Flashcard Maker is temporarily unavailable.
+        </p>
+
+        <p class="muted">
+          Please try again later once the update is complete.
+        </p>
+
+      </div>
+
+      <div class="modal-footer">
+
+        <button
+          type="button"
+          class="btn primary"
+          data-action="close-ai-unavailable">
+          Got it
+        </button>
+
+      </div>
+
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  console.log('AI unavailable modal added to DOM');
+}
+
+async function communityFetch(path, options = {}) {
+  const url = `${COMMUNITY_API_BASE}${path}`;
+
+  const response = await fetch(url, {
+    credentials: 'include',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {})
+    }
+  });
+
+  let data = null;
+
+  try {
+    data = await response.json();
+  } catch {
+    data = {};
+  }
+
+  if (!response.ok) {
+    const error = new Error(
+      data?.error || `Community API request failed (${response.status}).`
+    );
+
+    error.status = response.status;
+    error.data = data;
+
+    throw error;
+  }
+
+  return data;
+}
+
+async function initializeCommunitySession() {
+  try {
+    const data = await communityFetch('/api/auth/session', {
+      method: 'POST'
+    });
+
+    if (!data?.user) {
+      throw new Error(
+        'Community session response did not contain a user.'
+      );
+    }
+
+    communityUser =
+      normalizeCommunityUser(data.user);
+
+    communityReady = true;
+
+    console.log(
+      'Community session initialized:',
+      communityUser
+    );
+
+    // Update the already-rendered header with the
+    // freshly loaded community profile/avatar.
+    updateChrome();
+    updateCommunityUserUI?.();
+
+    return communityUser;
+
+  } catch (err) {
+
+    console.error(
+      'Failed to initialize community session:',
+      err
+    );
+
+    communityUser = null;
+    communityReady = false;
+
+    updateChrome();
+
+    return null;
+  }
+}
+
+function updateCommunityUserUI() {
+  const profileButtons = document.querySelectorAll(
+    '[data-action="open-profile"], [data-action="edit-profile"], .profile-button, .user-avatar'
+  );
+
+  profileButtons.forEach(button => {
+    if (!communityUser) return;
+
+    const displayName =
+      communityUser.displayName ||
+      communityUser.username ||
+      'EcE Hub User';
+
+    const username = communityUser.username || '';
+
+    button.setAttribute(
+      'aria-label',
+      `Edit profile: ${displayName}${username ? ` (@${username})` : ''}`
+    );
+
+    if (communityUser.avatarUrl) {
+      button.style.backgroundImage = `url("${communityUser.avatarUrl}")`;
+      button.style.backgroundSize = 'cover';
+      button.style.backgroundPosition = 'center';
+      button.classList.add('has-avatar');
+    }
+  });
+}
+
+async function getMyProfile() {
+  const result = await communityFetch(COMMUNITY_API.profile);
+
+  communityUser =
+    normalizeCommunityUser(result.user);
+
+  updateCommunityUserUI();
+
+  return communityUser;
+}
+
+async function updateMyProfile(profile) {
+  const result = await communityFetch(
+    COMMUNITY_API.profile,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(profile)
+    }
+  );
+
+  communityUser =
+    normalizeCommunityUser(result.user);
+
+  updateCommunityUserUI();
+
+  return communityUser;
+}
+
+async function checkUsernameAvailability(username) {
+  const value = String(username || '').trim();
+
+  if (!value) {
+    return {
+      available: false,
+      reason: 'invalid'
+    };
+  }
+
+  const url =
+    `${COMMUNITY_API.usernameCheck}?username=` +
+    encodeURIComponent(value);
+
+  return communityFetch(url);
+}
+
+async function getCommunityFlashcards({
+  query = '',
+  subject = '',
+  limit = 20
+} = {}) {
+  const params = new URLSearchParams();
+
+  if (query.trim()) {
+    params.set('q', query.trim());
+  }
+
+  if (subject.trim()) {
+    params.set('subject', subject.trim());
+  }
+
+  params.set('limit', String(Math.min(50, Math.max(1, limit))));
+
+  const url = `${COMMUNITY_API.flashcards}?${params.toString()}`;
+
+  const result = await communityFetch(url);
+
+  return result.sets || [];
+}
+
+async function getFlashcardSet(setId) {
+  if (!setId) {
+    throw new Error('Flashcard set ID is required.');
+  }
+
+  const result = await communityFetch(
+    `${COMMUNITY_API.flashcards}/${encodeURIComponent(setId)}`
+  );
+
+  return result.set || null;
+}
+
+async function createFlashcardSet({
+  title,
+  subject = '',
+  description = '',
+  visibility = 'public',
+  cards
+}) {
+  const result = await communityFetch(COMMUNITY_API.flashcards, {
+    method: 'POST',
+    body: JSON.stringify({
+      title,
+      subject,
+      description,
+      visibility,
+      cards
+    })
+  });
+
+  return result.set;
+}
+
+async function updateFlashcardSet(setId, data) {
+  if (!setId) {
+    throw new Error('Flashcard set ID is required.');
+  }
+
+  const result = await communityFetch(
+    `${COMMUNITY_API.flashcards}/${encodeURIComponent(setId)}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    }
+  );
+
+  return result.set;
+}
+
+async function deleteFlashcardSet(setId) {
+  if (!setId) {
+    throw new Error('Flashcard set ID is required.');
+  }
+
+  return communityFetch(
+    `${COMMUNITY_API.flashcards}/${encodeURIComponent(setId)}`,
+    {
+      method: 'DELETE'
+    }
+  );
+}
+
+async function getWorkspaceSets() {
+  const result = await communityFetch(COMMUNITY_API.workspace);
+  return result.sets || [];
+}
+
+async function addFlashcardSetToWorkspace(setId) {
+  if (!setId) {
+    throw new Error('Flashcard set ID is required.');
+  }
+
+  return communityFetch(
+    `${COMMUNITY_API.workspace}/${encodeURIComponent(setId)}`,
+    {
+      method: 'POST'
+    }
+  );
+}
+
+async function removeFlashcardSetFromWorkspace(setId) {
+  if (!setId) {
+    throw new Error('Flashcard set ID is required.');
+  }
+
+  return communityFetch(
+    `${COMMUNITY_API.workspace}/${encodeURIComponent(setId)}`,
+    {
+      method: 'DELETE'
+    }
+  );
+}
+
+function communityProfileAvatar() {
+  if (!communityUser) {
+    return `
+      <span class="profile-avatar-fallback">
+        ?
+      </span>
+    `;
+  }
+
+  const name =
+    communityUser.displayName ||
+    communityUser.username ||
+    'Student';
+
+  const initial =
+    name.trim().charAt(0).toUpperCase() || 'S';
+
+  if (communityUser.avatarUrl) {
+    return `
+      <img
+        src="${esc(communityUser.avatarUrl)}"
+        alt=""
+        onerror="
+          this.style.display='none';
+          this.nextElementSibling.style.display='flex';
+        "
+      >
+
+      <span
+        class="profile-avatar-fallback"
+        style="display:none;"
+      >
+        ${esc(initial)}
+      </span>
+    `;
+  }
+
+  return `
+    <span class="profile-avatar-fallback">
+      ${esc(initial)}
+    </span>
+  `;
+}
+
+async function openCommunityProfileModal() {
+  try {
+    // Make sure the Cloudflare community session exists.
+    if (!communityUser) {
+      console.log('Community user missing, initializing session...');
+      await initializeCommunitySession();
+    }
+
+    if (!communityUser) {
+      console.error('Community profile still unavailable after session initialization.');
+      showToast?.('Unable to load your community profile.', 'error');
+      return;
+    }
+
+    const user = communityUser;
+
+    const existing = document.getElementById('community-profile-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+
+    modal.id = 'community-profile-modal';
+    modal.className = 'modal-backdrop';
+
+    modal.innerHTML = `
+  <div class="community-profile-modal-card">
+
+    <div class="community-profile-modal-header">
+
+      <div>
+        <h2>Edit profile</h2>
+
+        <p>
+          Your community identity and flashcard author profile.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        class="community-profile-modal-close"
+        data-action="close-community-profile-modal"
+        aria-label="Close"
+      >
+        ×
+      </button>
+
+    </div>
+
+
+    <div class="community-profile-modal-body">
+
+      <!-- PROFILE PREVIEW -->
+
+      <div class="community-profile-preview">
+
+        <div class="community-profile-preview-avatar">
+          ${
+            user.avatarUrl
+              ? `
+                <img
+                  src="${esc(user.avatarUrl)}"
+                  alt=""
+                >
+              `
+              : esc(
+                  (
+                    user.displayName ||
+                    user.username ||
+                    'U'
+                  )
+                    .trim()
+                    .charAt(0)
+                    .toUpperCase()
+                )
+          }
+        </div>
+
+        <div class="community-profile-preview-info">
+
+          <strong class="community-profile-preview-name">
+            ${esc(
+              user.displayName ||
+              user.username ||
+              'Student'
+            )}
+          </strong>
+
+          <div class="community-profile-preview-username">
+            @${esc(user.username || 'guest')}
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- FORM -->
+
+      <form
+        id="community-profile-form"
+        class="community-profile-form"
+      >
+
+        <label class="community-profile-field">
+
+          <span>
+            Username
+          </span>
+
+          <input
+            id="community-profile-username"
+            name="username"
+            type="text"
+            maxlength="24"
+            minlength="3"
+            pattern="[A-Za-z0-9_]{3,24}"
+            value="${esc(user.username || '')}"
+            autocomplete="off"
+            required
+          >
+
+          <small
+            id="community-username-status"
+            class="community-profile-username-status"
+          >
+            3–24 letters, numbers, or underscores.
+          </small>
+
+        </label>
+
+
+        <label class="community-profile-field">
+
+          <span>
+            Display name
+          </span>
+
+          <input
+            name="displayName"
+            type="text"
+            maxlength="80"
+            value="${esc(user.displayName || '')}"
+          >
+
+        </label>
+
+
+        <label class="community-profile-field">
+
+          <span>
+            Avatar URL
+          </span>
+
+          <input
+            name="avatarUrl"
+            type="url"
+            maxlength="500"
+            value="${esc(user.avatarUrl || '')}"
+            placeholder="https://..."
+          >
+
+        </label>
+
+
+        <label class="community-profile-field">
+
+          <span>
+            Bio
+          </span>
+
+          <textarea
+            name="bio"
+            maxlength="500"
+            rows="4"
+            placeholder="Tell other EcE Hub users a little about yourself."
+          >${esc(user.bio || '')}</textarea>
+
+        </label>
+
+
+        <div
+          id="community-profile-error"
+          class="community-profile-error"
+        ></div>
+
+
+        <div class="community-profile-modal-actions">
+
+          <button
+            type="button"
+            class="btn"
+            data-action="close-community-profile-modal"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            class="btn primary"
+            id="save-community-profile"
+          >
+            Save profile
+          </button>
+
+        </div>
+
+      </form>
+
+    </div>
+
+  </div>
+`;
+    document.body.appendChild(modal);
+
+    const form = document.getElementById('community-profile-form');
+    const usernameInput = document.getElementById('community-profile-username');
+    const usernameStatus = document.getElementById('community-username-status');
+    const errorBox = document.getElementById('community-profile-error');
+    const saveButton = document.getElementById('save-community-profile');
+
+    let usernameCheckTimer = null;
+
+    usernameInput.addEventListener('input', () => {
+      clearTimeout(usernameCheckTimer);
+
+      const username = usernameInput.value.trim();
+
+      usernameStatus.textContent =
+        'Checking username...';
+
+      usernameStatus.style.color = 'var(--muted)';
+
+      usernameCheckTimer = setTimeout(async () => {
+        try {
+          const result = await communityFetch(
+            `/api/users/check-username?username=${encodeURIComponent(username)}`
+          );
+
+          if (username !== usernameInput.value.trim()) return;
+
+          if (result.available) {
+            usernameStatus.textContent = 'Username is available.';
+            usernameStatus.style.color = '#16a34a';
+          } else {
+            usernameStatus.textContent =
+              result.reason === 'invalid'
+                ? 'Username must be 3–24 letters, numbers, or underscores.'
+                : 'That username is already taken.';
+
+            usernameStatus.style.color = '#dc2626';
+          }
+        } catch (error) {
+          usernameStatus.textContent =
+            'Unable to check username right now.';
+
+          usernameStatus.style.color = '#dc2626';
+        }
+      }, 350);
+    });
+
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+
+      errorBox.style.display = 'none';
+      saveButton.disabled = true;
+      saveButton.textContent = 'Saving...';
+
+      const formData = new FormData(form);
+
+      const payload = {
+        username: String(formData.get('username') || '').trim(),
+        displayName: String(formData.get('displayName') || '').trim(),
+        avatarUrl: String(formData.get('avatarUrl') || '').trim(),
+        bio: String(formData.get('bio') || '').trim()
+      };
+
+      try {
+        const result = await communityFetch('/api/users/me', {
+          method: 'PATCH',
+          body: JSON.stringify(payload)
+        });
+
+        communityUser =
+          normalizeCommunityUser(result.user);
+
+        updateCommunityHeader();
+
+        modal.remove();
+
+        render();
+
+        updateCommunityUserUI?.();
+
+        showToast?.('Profile updated successfully.', 'success');
+
+      } catch (error) {
+        console.error('Failed to update community profile:', error);
+
+        errorBox.textContent =
+          error?.data?.error ||
+          error?.message ||
+          'Failed to update your profile.';
+
+        errorBox.style.display = 'block';
+
+        saveButton.disabled = false;
+        saveButton.textContent = 'Save profile';
+      }
+    });
+
+    // Close when clicking outside the card.
+    modal.addEventListener('click', event => {
+      if (event.target === modal) {
+        modal.remove();
+      }
+    });
+
+  } catch (error) {
+    console.error('Failed to open community profile:', error);
+    showToast?.('Unable to open your profile.', 'error');
+  }
+}
+
+function setupCommunityProfileForm(modal) {
+  const form =
+    modal.querySelector('#community-profile-form');
+
+  const usernameInput =
+    modal.querySelector('#community-profile-username');
+
+  const usernameStatus =
+    modal.querySelector('#community-username-status');
+
+  const errorBox =
+    modal.querySelector('#community-profile-error');
+
+  const saveButton =
+    modal.querySelector('#community-profile-save');
+
+  let usernameAvailable = false;
+  let usernameTimer = null;
+  let usernameCheckId = 0;
+
+  async function checkUsername() {
+    const username =
+      usernameInput.value.trim();
+
+    const currentCheckId =
+      ++usernameCheckId;
+
+    if (!/^[A-Za-z0-9_]{3,24}$/.test(username)) {
+      usernameAvailable = false;
+
+      usernameStatus.textContent =
+        'Username must be 3–24 letters, numbers, or underscores.';
+
+      return false;
+    }
+
+    if (
+      communityUser &&
+      username.toLowerCase() ===
+        String(communityUser.username || '').toLowerCase()
+    ) {
+      usernameAvailable = true;
+
+      usernameStatus.textContent =
+        'This is your current username.';
+
+      return true;
+    }
+
+    usernameStatus.textContent =
+      'Checking username...';
+
+    try {
+      const result =
+        await communityFetch(
+          `/api/users/check-username?username=${encodeURIComponent(username)}`
+        );
+
+      // Ignore an older request if the username
+      // has changed since this request started.
+      if (currentCheckId !== usernameCheckId) {
+        return false;
+      }
+
+      usernameAvailable =
+        result.available === true;
+
+      usernameStatus.textContent =
+        usernameAvailable
+          ? 'Username is available.'
+          : 'That username is already taken.';
+
+      return usernameAvailable;
+
+    } catch (error) {
+      // Ignore errors from outdated requests.
+      if (currentCheckId !== usernameCheckId) {
+        return false;
+      }
+
+      console.error(
+        'Username availability check failed:',
+        error
+      );
+
+      usernameAvailable = false;
+
+      usernameStatus.textContent =
+        'Unable to check username right now.';
+
+      return false;
+    }
+  }
+
+  usernameInput.addEventListener('input', () => {
+    clearTimeout(usernameTimer);
+
+    usernameAvailable = false;
+
+    usernameStatus.textContent =
+      'Checking username...';
+
+    usernameTimer = setTimeout(() => {
+      checkUsername();
+    }, 350);
+  });
+
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+
+    errorBox.hidden = true;
+    errorBox.textContent = '';
+
+    const validUsername =
+      await checkUsername();
+
+    if (!validUsername) {
+      errorBox.textContent =
+        'Please choose an available username.';
+
+      errorBox.hidden = false;
+      return;
+    }
+
+    const payload = {
+      username:
+        usernameInput.value.trim(),
+
+      displayName:
+        modal
+          .querySelector(
+            '#community-profile-display-name'
+          )
+          .value
+          .trim(),
+
+      avatarUrl:
+        modal
+          .querySelector(
+            '#community-profile-avatar'
+          )
+          .value
+          .trim(),
+
+      bio:
+        modal
+          .querySelector(
+            '#community-profile-bio'
+          )
+          .value
+          .trim()
+    };
+
+    saveButton.disabled = true;
+    saveButton.textContent =
+      'Saving...';
+
+    try {
+      const result =
+        await communityFetch(
+          '/api/users/me',
+          {
+            method: 'PATCH',
+            body: JSON.stringify(payload)
+          }
+        );
+
+      if (!result?.user) {
+        throw new Error(
+          'The server did not return the updated profile.'
+        );
+      }
+
+      communityUser =
+        normalizeCommunityUser(
+          result.user
+        );
+
+      console.log(
+        'Community profile updated:',
+        communityUser
+      );
+
+      updateCommunityHeader();
+
+      closeCommunityProfileModal();
+
+      if (
+        typeof renderCommunityUser ===
+        'function'
+      ) {
+        renderCommunityUser(
+          communityUser
+        );
+      }
+
+      if (
+        typeof render === 'function'
+      ) {
+        render();
+      }
+
+    } catch (error) {
+      console.error(
+        'Community profile update failed:',
+        error
+      );
+
+      errorBox.textContent =
+        error?.data?.error ||
+        error?.message ||
+        'Could not update your profile.';
+
+      errorBox.hidden = false;
+
+      saveButton.disabled = false;
+      saveButton.textContent =
+        'Save Profile';
+    }
+  });
+}
+
+function closeCommunityProfileModal() {
+  const modal =
+    document.getElementById('community-profile-modal');
+
+  if (!modal) return;
+
+  modal.classList.remove('open');
+
+  setTimeout(() => {
+    modal.remove();
+  }, 180);
+}
+
+function updateCommunityHeader() {
+  const nameElement =
+    document.getElementById('headerName');
+
+  const usernameElement =
+    document.getElementById('headerUsername');
+
+  const avatarElement =
+    document.getElementById('headerAvatar');
+
+  if (!nameElement || !avatarElement) {
+    return;
+  }
+
+  const displayName =
+    communityUser?.displayName ||
+    data.profile?.name ||
+    'Student';
+
+  const username =
+    communityUser?.username ||
+    'guest';
+
+  nameElement.textContent =
+    displayName;
+
+  if (usernameElement) {
+    usernameElement.textContent =
+      `@${username}`;
+  }
+
+  if (communityUser?.avatarUrl) {
+    avatarElement.innerHTML = `
+      <img
+        src="${esc(communityUser.avatarUrl)}"
+        alt=""
+        style="
+          width:100%;
+          height:100%;
+          object-fit:cover;
+          border-radius:50%;
+        "
+      >
+      <span></span>
+    `;
+  } else {
+    avatarElement.innerHTML = `
+      ${esc(displayName.charAt(0).toUpperCase())}
+      <span></span>
+    `;
+  }
+}
+
 /* ---------- event binding (delegated — works for modals too) ---------- */
 function action(a, id, index, el) {
+  console.log('ACTION:', a, el);
+    if (a === 'clear-community-search') {
+    clearCommunitySearch();
+    return;
+  }
+
+  if (a === 'view-community-user') {
+    return openCommunityUserProfile(
+      el?.dataset.id || '',
+      el?.dataset.username || ''
+    );
+  }
+
+  if (a === 'view-community-set') {
+    return openCommunityFlashcardSet(
+      id
+    );
+  }
+
+  if (a === 'add-community-set') {
+    return addCommunitySetToWorkspace(
+      id
+    );
+  }
   if (a === 'search-go') {
     return goSearchResult(el?.dataset.type || '', id, el?.dataset.route || '');
   }
@@ -2216,6 +4836,25 @@ function action(a, id, index, el) {
     route = 'classes';
     render();
     window.scrollTo(0, 0);
+    return;
+  }
+      if (a === 'edit-profile') {
+      console.log('EDIT PROFILE CLICKED');
+      openCommunityProfileModal();
+      return;
+    }
+
+    if (a === 'close-community-profile-modal') {
+      closeCommunityProfileModal();
+      return;
+    }
+        if (a === 'save-community-profile') {
+    data.profile.name = document.querySelector('#profile-name').value || 'Student';
+    data.profile.course = document.querySelector('#profile-course').value || 'EcE Learner';
+    save();
+    closeModal();
+    render();
+    toast('Profile updated');
     return;
   }
     /* ==============================
@@ -2464,17 +5103,17 @@ function action(a, id, index, el) {
     window.open(book.driveUrl, '_blank');
     return;
   }
-  if (action === 'download-book') {
-    const book = data.books.find(
-        b => b.id === element.dataset.id
-    );
+    if (a === 'download-book') {
+      const book = data.books?.find(
+        b => b.id === id
+      );
 
-    if (book) {
+      if (book) {
         downloadBook(book);
-    }
+      }
 
-    return;
- }
+      return;
+    }
   if (a === 'delete-book') {
     const book = data.books?.find(
       b => b.id === id
@@ -2914,29 +5553,7 @@ if (a === 'confirm-delete-set') {
     }
     return;
   }
-  if (a === 'edit-profile') {
-    openModal(
-      `<h2>Edit Profile</h2>
-       <div class="form-grid">
-         <div class="field"><label>Name</label><input id="profile-name" value="${esc(data.profile.name)}"></div>
-         <div class="field"><label>Course label</label><input id="profile-course" value="${esc(data.profile.course)}"></div>
-       </div>
-       <div class="modal-actions">
-         <button class="btn" data-action="close-modal">Cancel</button>
-         <button class="btn primary" data-action="save-profile">Save</button>
-       </div>`
-    );
-    return;
-  }
-  if (a === 'save-profile') {
-    data.profile.name = document.querySelector('#profile-name').value || 'Student';
-    data.profile.course = document.querySelector('#profile-course').value || 'EcE Learner';
-    save();
-    closeModal();
-    render();
-    toast('Profile updated');
-    return;
-  }
+
   if (a === 'add-set-card') {
     const container = document.querySelector('#set-cards');
     if (!container) return;
@@ -2961,98 +5578,183 @@ if (a === 'confirm-delete-set') {
     return;
     }
 
-if (a === 'remove-set-card') {
-  const block = el?.closest('.set-card-editor');
+  if (a === 'remove-set-card') {
+    const block = el?.closest('.set-card-editor');
 
-  if (block) {
-    block.remove();
+    if (block) {
+      block.remove();
+    }
+
+    renumberSetCards();
+
+    const container = document.querySelector('#set-cards');
+    const empty = document.querySelector('#set-cards-empty');
+
+    if (container && empty) {
+      const count = container.querySelectorAll('.set-card-editor').length;
+      empty.style.display = count ? 'none' : 'flex';
+    }
+
+    return;
+  }
+  if (a === 'study-builtin') {
+    return studyBuiltin(id);
   }
 
-  renumberSetCards();
-
-  const container = document.querySelector('#set-cards');
-  const empty = document.querySelector('#set-cards-empty');
-
-  if (container && empty) {
-    const count = container.querySelectorAll('.set-card-editor').length;
-    empty.style.display = count ? 'none' : 'flex';
+  if (a === 'view-builtin') {
+    return studyBuiltin(id);
   }
 
-  return;
-}
-if (a === 'study-builtin') {
-  return studyBuiltin(id);
-}
+  if (a === 'exit-builtin-study') {
+    window.builtinStudyState = null;
+    return go('builtin-flashcards');
+  }
 
-if (a === 'view-builtin') {
-  return studyBuiltin(id);
-}
+  if (a === 'flip-builtin-card') {
 
-if (a === 'exit-builtin-study') {
-  window.builtinStudyState = null;
-  return go('builtin-flashcards');
-}
+    if (!window.builtinStudyState) {
+      return;
+    }
 
-if (a === 'flip-builtin-card') {
+    window.builtinStudyState.revealed =
+      !window.builtinStudyState.revealed;
 
-  if (!window.builtinStudyState) {
+    return render();
+  }
+
+  if (a === 'next-builtin-card') {
+
+    const state = window.builtinStudyState;
+
+    if (!state) {
+      return;
+    }
+
+    const deck = BUILTIN_FLASHCARDS.find(
+      x => x.id === state.deckId
+    );
+
+    if (!deck || !deck.cards.length) {
+      return;
+    }
+
+    state.index =
+      (state.index + 1) % deck.cards.length;
+
+    state.revealed = false;
+
+    return render();
+  }
+
+  if (a === 'prev-builtin-card') {
+
+    const state = window.builtinStudyState;
+
+    if (!state) {
+      return;
+    }
+
+    const deck = BUILTIN_FLASHCARDS.find(
+      x => x.id === state.deckId
+    );
+
+    if (!deck || !deck.cards.length) {
+      return;
+    }
+
+    state.index =
+      (state.index - 1 + deck.cards.length)
+      % deck.cards.length;
+
+    state.revealed = false;
+
+    return render();
+  }
+  if (a === 'open-ai-flashcard-maker') {
+    console.log('AI Flashcard Maker clicked');
+
+    if (window.AIassistant?.Available !== true) {
+      console.log('AI Assistant unavailable');
+      showAIAssistantUnavailable();
+      return;
+    }
+
+    console.log('AI Assistant available');
+
+    route = 'ai-flashcard-maker';
+    render();
+
+    setTimeout(() => {
+      setupAIFlashcardBookSearch();
+    }, 0);
+
+    window.scrollTo(0, 0);
+    return;
+  }
+  if (a === 'back-to-flashcards') {
+    route = 'flashcards';
+    render();
+    return;
+  }
+  if (a === 'generate-ai-flashcards') {
+    return generateAIFlashcards();
+  }
+  if (action === 'edit-set') {
+    const id = element.dataset.id;
+
+    const set = data.sets?.find(
+      s => s.id === id
+    );
+
+    if (!set) {
+      alert('Study set not found.');
+      return;
+    }
+
+    editStudySet(set);
+
     return;
   }
 
-  window.builtinStudyState.revealed =
-    !window.builtinStudyState.revealed;
+  if (action === 'delete-set') {
+    const id = element.dataset.id;
 
-  return render();
-}
+    const set = data.sets?.find(
+      s => s.id === id
+    );
 
-if (a === 'next-builtin-card') {
+    if (!set) {
+      alert('Study set not found.');
+      return;
+    }
 
-  const state = window.builtinStudyState;
+    deleteStudySet(set);
 
-  if (!state) {
     return;
   }
+  if (a === 'close-ai-unavailable') {
+    const modal = document.getElementById('aiUnavailableModal');
 
-  const deck = BUILTIN_FLASHCARDS.find(
-    x => x.id === state.deckId
-  );
+    if (modal) {
+      modal.remove();
+    }
 
-  if (!deck || !deck.cards.length) {
     return;
   }
+  if (a === 'unlink-google') {
 
-  state.index =
-    (state.index + 1) % deck.cards.length;
+    unlinkGoogleAccount();
 
-  state.revealed = false;
-
-  return render();
-}
-
-if (a === 'prev-builtin-card') {
-
-  const state = window.builtinStudyState;
-
-  if (!state) {
     return;
+
   }
+  if (a === 'link-google') {
 
-  const deck = BUILTIN_FLASHCARDS.find(
-    x => x.id === state.deckId
-  );
+    linkGoogleAccount();
 
-  if (!deck || !deck.cards.length) {
     return;
+
   }
-
-  state.index =
-    (state.index - 1 + deck.cards.length)
-    % deck.cards.length;
-
-  state.revealed = false;
-
-  return render();
-}
 }
 
 /* ---------- timer ---------- */
@@ -3165,192 +5867,511 @@ document.querySelector('#resetData').addEventListener('click', () => {
   }
 });
 /* ---------- global search ---------- */
-function collectSearchHits(q) {
-  const query = q.trim().toLowerCase();
-  if (!query) return [];
-  const groups = [];
-  const match = (s) => String(s || '').toLowerCase().includes(query);
+/* ---------- global community search ---------- */
 
-  const classes = data.classes.filter(x => match(x.name) || match(x.category));
-  if (classes.length) {
-    groups.push({
-      label: 'Classes',
-      items: classes.map(x => ({
-        id: x.id, type: 'class', route: 'classes',
-        title: x.name, sub: x.category || 'Class',
-        icon: '▣', iconClass: 'purple'
-      }))
-    });
-  }
-  const sets = data.sets.filter(x => match(x.title) || match(x.subject));
-  if (sets.length) {
-    groups.push({
-      label: 'Study Sets',
-      items: sets.map(x => ({
-        id: x.id, type: 'set', route: 'flashcards',
-        title: x.title, sub: `${x.subject || 'Set'} · ${x.cards.length} cards`,
-        icon: '▧', iconClass: 'green'
-      }))
-    });
-  }
-  const notes = data.notes.filter(x => match(x.title) || match(x.subject) || match(x.body));
-  if (notes.length) {
-    groups.push({
-      label: 'Notes',
-      items: notes.map(x => ({
-        id: x.id, type: 'note', route: 'notes',
-        title: x.title, sub: x.subject || 'Note',
-        icon: '☑', iconClass: 'blue'
-      }))
-    });
-  }
-  const quizzes = data.quizzes.filter(x => match(x.title) || match(x.subject));
-  if (quizzes.length) {
-    groups.push({
-      label: 'Quizzes',
-      items: quizzes.map(x => ({
-        id: x.id, type: 'quiz', route: 'quizzes',
-        title: x.title, sub: `${x.subject || 'Quiz'} · ${x.questions.length} questions`,
-        icon: '◈', iconClass: 'orange'
-      }))
-    });
-  }
-  const books = data.books.filter(x => match(x.title) || match(x.author) || match(x.course));
-  if (books.length) {
-    groups.push({
-      label: 'Library',
-      items: books.map(x => ({
-        id: x.id, type: 'book', route: 'library',
-        title: x.title, sub: `${x.author || ''} · ${x.course || ''}`.replace(/^ · | · $/g, ''),
-        icon: '▤', iconClass: 'blue'
-      }))
-    });
-  }
-  return groups;
-}
+let communitySearchRequest = null;
 
-function renderSearchResults(q) {
-  const panel = document.querySelector('#searchResults');
-  const clearBtn = document.querySelector('#searchClear');
-  if (!panel) return;
-  const query = (q || '').trim();
-  if (clearBtn) clearBtn.hidden = !query;
-  if (!query) {
-    panel.hidden = true;
-    panel.classList.remove('open');
-    panel.innerHTML = '';
-    return;
-  }
-  const groups = collectSearchHits(query);
-  panel.hidden = false;
-  panel.classList.add('open');
-  if (!groups.length) {
-    panel.innerHTML = `<div class="search-empty">No matches for “${esc(query)}”</div>`;
-    return;
-  }
-  panel.innerHTML = groups.map(g =>
-    `<div class="search-group">${esc(g.label)}</div>` +
-    g.items.map(item =>
-      `<button type="button" class="search-item" data-action="search-go"
-        data-type="${esc(item.type)}" data-id="${esc(item.id)}" data-route="${esc(item.route)}">
-        <span class="si-icon ${esc(item.iconClass)}">${item.icon}</span>
-        <span class="si-body">
-          <span class="si-title">${esc(item.title)}</span>
-          <span class="si-sub">${esc(item.sub)}</span>
-        </span>
-      </button>`
-    ).join('')
-  ).join('');
-}
+async function performCommunitySearch(query) {
+  const q = String(query || '').trim();
 
-function closeSearch() {
-  const panel = document.querySelector('#searchResults');
-  const input = document.querySelector('#globalSearch');
-  const clearBtn = document.querySelector('#searchClear');
-  if (panel) { panel.hidden = true; panel.classList.remove('open'); panel.innerHTML = ''; }
-  if (clearBtn) clearBtn.hidden = true;
-  if (input) input.value = '';
-}
-
-function goSearchResult(type, id, route) {
-  closeSearch();
-
-  if (type === 'set') {
-    studySet(id);
+  if (!q) {
+    go('home');
     return;
   }
 
-  if (type === 'quiz') {
-    go('quizzes');
-
-    // Slight delay so the view is ready, then open quiz
-    setTimeout(() => takeQuiz(id), 50);
-    return;
+  /*
+   * Abort an older search if the user submits another one.
+   */
+  if (communitySearchRequest) {
+    communitySearchRequest.abort();
   }
 
-  if (type === 'book') {
-    const book = data.books?.find(book => book.id === id);
+  communitySearchRequest = new AbortController();
 
-    if (!book) {
-      toast('Book not found');
+  /*
+   * Show the search results in the HOME view.
+   */
+  route = 'home';
+
+  const container = document.querySelector('#app');
+
+  if (container) {
+    container.innerHTML = `
+      <section class="search-page">
+        <div class="search-page-header">
+          <button
+            type="button"
+            class="btn"
+            data-action="clear-community-search"
+          >
+            ← Back
+          </button>
+
+          <div>
+            <h1>Search</h1>
+            <p>
+              Searching for
+              <strong>${esc(q)}</strong>
+            </p>
+          </div>
+        </div>
+
+        <div class="search-page-loading">
+          Searching EcE Hub...
+        </div>
+      </section>
+    `;
+  }
+
+  try {
+    const response = await communityFetch(
+      `/api/search?q=${encodeURIComponent(q)}`,
+      {
+        method: 'GET',
+        signal: communitySearchRequest.signal
+      }
+    );
+
+    renderCommunitySearchResults(
+      response,
+      q
+    );
+
+  } catch (error) {
+
+    if (error?.name === 'AbortError') {
       return;
     }
 
-    // Go to the library
-    go('library');
+    console.error(
+      'Community search failed:',
+      error
+    );
 
-    // Open the folder containing the book
-    if (book.folderId) {
-      libraryFolderId = book.folderId;
+    if (container) {
+      container.innerHTML = `
+        <section class="search-page">
+
+          <div class="search-page-header">
+            <button
+              type="button"
+              class="btn"
+              data-action="clear-community-search"
+            >
+              ← Back
+            </button>
+
+            <div>
+              <h1>Search</h1>
+              <p>
+                Search failed for
+                <strong>${esc(q)}</strong>
+              </p>
+            </div>
+          </div>
+
+          <div class="search-empty">
+            Unable to search EcE Hub right now.
+          </div>
+
+        </section>
+      `;
     }
+  }
+}
 
-    render();
 
-    // Open the PDF after the library view is ready
-    setTimeout(() => {
-      const currentBook = data.books?.find(book => book.id === id);
+function renderCommunitySearchResults(
+  result,
+  query
+) {
+  const container =
+    document.querySelector('#app');
 
-      if (!currentBook) {
-        toast('Book not found');
-        return;
+  if (!container) return;
+
+  const users =
+    Array.isArray(result?.users)
+      ? result.users
+      : [];
+
+  const flashcards =
+    Array.isArray(result?.flashcards)
+      ? result.flashcards
+      : [];
+
+  const total =
+    users.length +
+    flashcards.length;
+
+  container.innerHTML = `
+    <section class="search-page">
+
+      <div class="search-page-header">
+
+        <button
+          type="button"
+          class="btn"
+          data-action="clear-community-search"
+        >
+          ← Back
+        </button>
+
+        <div>
+          <h1>Search results</h1>
+
+          <p>
+            Results for
+            <strong>“${esc(query)}”</strong>
+          </p>
+        </div>
+
+      </div>
+
+
+      ${
+        total === 0
+          ? `
+            <div class="search-empty">
+              No results found for
+              “${esc(query)}”.
+            </div>
+          `
+          : ''
       }
 
-      if (!currentBook.driveUrl && !currentBook.url) {
-        toast('No PDF link configured');
-        return;
+
+      ${
+        users.length
+          ? `
+            <section class="search-result-section">
+
+              <div class="search-result-section-header">
+                <h2>People</h2>
+                <span>
+                  ${users.length}
+                </span>
+              </div>
+
+              <div class="search-user-list">
+
+                ${users.map(user => {
+
+                  const name =
+                    user.displayName ||
+                    user.username ||
+                    'Student';
+
+                  const initial =
+                    name
+                      .trim()
+                      .charAt(0)
+                      .toUpperCase() ||
+                    'S';
+
+                  return `
+                    <article
+                      class="search-user-card"
+                    >
+
+                      <div class="search-user-avatar">
+
+                        ${
+                          user.avatarUrl
+                            ? `
+                              <img
+                                src="${esc(user.avatarUrl)}"
+                                alt=""
+                                onerror="
+                                  this.style.display='none';
+                                  this.nextElementSibling.style.display='flex';
+                                "
+                              >
+
+                              <span
+                                class="search-avatar-fallback"
+                                style="display:none;"
+                              >
+                                ${esc(initial)}
+                              </span>
+                            `
+                            : `
+                              <span
+                                class="search-avatar-fallback"
+                              >
+                                ${esc(initial)}
+                              </span>
+                            `
+                        }
+
+                      </div>
+
+
+                      <div class="search-user-info">
+
+                        <strong>
+                          ${esc(name)}
+                        </strong>
+
+                        <span>
+                          @${esc(
+                            user.username ||
+                            'guest'
+                          )}
+                        </span>
+
+                        ${
+                          user.bio
+                            ? `
+                              <small>
+                                ${esc(user.bio)}
+                              </small>
+                            `
+                            : ''
+                        }
+
+                      </div>
+
+
+                      <button
+                        type="button"
+                        class="btn"
+                        data-action="view-community-user"
+                        data-id="${esc(user.id)}"
+                        data-username="${esc(
+                          user.username || ''
+                        )}"
+                      >
+                        View profile
+                      </button>
+
+                    </article>
+                  `;
+
+                }).join('')}
+
+              </div>
+
+            </section>
+          `
+          : ''
       }
 
-      const pdfUrl = currentBook.driveUrl || currentBook.url;
 
-      window.open(pdfUrl, '_blank');
-    }, 50);
+      ${
+        flashcards.length
+          ? `
+            <section class="search-result-section">
 
-    return;
+              <div class="search-result-section-header">
+                <h2>Flashcards</h2>
+                <span>
+                  ${flashcards.length}
+                </span>
+              </div>
+
+              <div class="search-flashcard-list">
+
+                ${flashcards.map(set => {
+
+                  const author =
+                    set.author || {};
+
+                  const authorName =
+                    author.displayName ||
+                    author.username ||
+                    'Student';
+
+                  return `
+                    <article
+                      class="search-flashcard-card"
+                    >
+
+                      <div
+                        class="search-flashcard-content"
+                      >
+
+                        <h3>
+                          ${esc(
+                            set.title ||
+                            'Untitled set'
+                          )}
+                        </h3>
+
+                        ${
+                          set.subject
+                            ? `
+                              <span
+                                class="search-flashcard-subject"
+                              >
+                                ${esc(
+                                  set.subject
+                                )}
+                              </span>
+                            `
+                            : ''
+                        }
+
+                        ${
+                          set.description
+                            ? `
+                              <p>
+                                ${esc(
+                                  set.description
+                                )}
+                              </p>
+                            `
+                            : ''
+                        }
+
+                        <div
+                          class="search-flashcard-meta"
+                        >
+                          <span>
+                            ${Number(
+                              set.cardCount || 0
+                            )} cards
+                          </span>
+
+                          <span>
+                            by
+                            ${esc(authorName)}
+
+                            ${
+                              author.username
+                                ? `
+                                  · @${esc(
+                                    author.username
+                                  )}
+                                `
+                                : ''
+                            }
+                          </span>
+                        </div>
+
+                      </div>
+
+
+                      <div
+                        class="search-flashcard-actions"
+                      >
+
+                        <button
+                          type="button"
+                          class="btn"
+                          data-action="view-community-set"
+                          data-id="${esc(set.id)}"
+                        >
+                          View
+                        </button>
+
+                        <button
+                          type="button"
+                          class="btn primary"
+                          data-action="add-community-set"
+                          data-id="${esc(set.id)}"
+                        >
+                          + Add to Workspace
+                        </button>
+
+                      </div>
+
+                    </article>
+                  `;
+
+                }).join('')}
+
+              </div>
+
+            </section>
+          `
+          : ''
+      }
+
+    </section>
+  `;
+}
+
+
+function clearCommunitySearch() {
+  const input =
+    document.querySelector('#globalSearch');
+
+  if (input) {
+    input.value = '';
   }
 
-  go(route || 'home');
+  go('home');
+
+  window.scrollTo(0, 0);
 }
-const searchInput = document.querySelector('#globalSearch');
+
+
+/*
+ * Global search bar.
+ *
+ * IMPORTANT:
+ * Search results are no longer rendered
+ * into #searchResults.
+ *
+ * Pressing ENTER performs a full search
+ * and replaces the Home view.
+ */
+
+const searchInput =
+  document.querySelector('#globalSearch');
+
 if (searchInput) {
-  searchInput.addEventListener('input', e => renderSearchResults(e.target.value));
-  searchInput.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-      closeSearch();
-      searchInput.blur();
+
+  searchInput.addEventListener(
+    'keydown',
+    event => {
+
+      if (event.key === 'Escape') {
+        searchInput.value = '';
+        searchInput.blur();
+        return;
+      }
+
+      if (event.key === 'Enter') {
+
+        event.preventDefault();
+
+        const query =
+          searchInput.value.trim();
+
+        if (!query) return;
+
+        performCommunitySearch(query);
+      }
     }
-  });
-  searchInput.addEventListener('focus', e => {
-    if (e.target.value.trim()) renderSearchResults(e.target.value);
-  });
+  );
+
 }
-const searchClear = document.querySelector('#searchClear');
+
+
+/*
+ * Clear button.
+ */
+
+const searchClear =
+  document.querySelector('#searchClear');
+
 if (searchClear) {
-  searchClear.addEventListener('click', e => {
-    e.preventDefault();
-    closeSearch();
-    document.querySelector('#globalSearch')?.focus();
-  });
+
+  searchClear.addEventListener(
+    'click',
+    event => {
+
+      event.preventDefault();
+
+      clearCommunitySearch();
+
+    }
+  );
+
 }
+
 document.addEventListener('click', e => {
   const wrap = document.querySelector('#searchWrap');
   if (wrap && !wrap.contains(e.target)) {
@@ -3439,7 +6460,7 @@ function renderStudyGoal() {
         </button>
       </div>
 
-      <p style="color:var(--muted);font-size:var(--font-small);">
+      <p style="color:var(--muted);font-size:var(--font-small);margin-bottom:8px;">
         Keep your streak going!
       </p>
 
@@ -3456,7 +6477,7 @@ function renderStudyGoal() {
         display:flex;
         justify-content:space-between;
         color:var(--muted);
-        font-size:var(--font-small);
+        font-size:10px;
       ">
         ${goal.days.map(day => `
           <span>
@@ -3468,5 +6489,13 @@ function renderStudyGoal() {
   `;
 }
 loadLibraryData();
+
+(async () => {
+
+  await initializeCommunitySession();
+
+  await handleGoogleLinkCallback();
+
+})();
 /* ---------- boot ---------- */
 render();

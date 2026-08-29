@@ -337,6 +337,10 @@ let activeClassId = null;
 let activeSetId = null;
 let timer = null;
 let timerSeconds = 25 * 60;
+let communityFlashcardSets = [];
+let communityFlashcardsLoading = false;
+let communityFlashcardsLoaded = false;
+let communityFlashcardsError = null;
 
 window.builtinStudyState = null;
 /* ---------- persistence & helpers ---------- */
@@ -515,32 +519,28 @@ async function handleGoogleLinkCallback() {
        * Fetch the current user again so the frontend gets
        * the newly linked Google identity from D1.
        */
-      const response = await communityFetch(
+    const result = await communityFetch(
         '/api/users/me',
         {
           method: 'GET'
         }
       );
 
-      if (!response.ok) {
+      if (!result?.user) {
         throw new Error(
-          `Failed to refresh community profile (${response.status})`
+          'Failed to refresh community profile.'
         );
       }
 
-      const result = await response.json();
+      communityUser =
+        normalizeCommunityUser(result.user);
 
-      if (result.user) {
-        communityUser =
-          normalizeCommunityUser(result.user);
+      communityReady = true;
 
-        communityReady = true;
-
-        console.log(
-          'Google account linked. Refreshed user:',
-          communityUser
-        );
-      }
+      console.log(
+        'Google account linked. Refreshed user:',
+        communityUser
+      );
 
       toast(
         'Google account linked successfully.'
@@ -786,7 +786,10 @@ function updateSearchVisibility() {
 /* ---------- routing & render ---------- */
 function render() {
   document.querySelectorAll('.nav-item').forEach(b =>
-    b.classList.toggle('active', b.dataset.route === route)
+    b.classList.toggle(
+      'active',
+      b.dataset.route === route
+    )
   );
 
   const c = document.querySelector('#content');
@@ -816,10 +819,20 @@ function render() {
     settings: settingsView
   };
 
-  c.innerHTML = (views[route] || homeView)();
+  c.innerHTML =
+    (views[route] || homeView)();
 
   updateChrome();
   updateSearchVisibility();
+
+  if (
+    route === 'flashcards' &&
+    !window.studyState &&
+    !communityFlashcardsLoaded &&
+    !communityFlashcardsLoading
+  ) {
+    loadCommunityFlashcards();
+  }
 }
 
 function go(r) {
@@ -1928,7 +1941,43 @@ function builtinStudyView() {
 }
 
 function flashcardsView() {
-  if (!window.studyState) {
+if (!window.studyState) {
+    const sets = communityFlashcardSets;
+
+    if (communityFlashcardsLoading) {
+      return (
+        pageTitle(
+          'Flashcards',
+          'Loading community study sets...'
+        ) +
+
+        `<div class="card empty">
+          Loading flashcard sets...
+        </div>`
+      );
+    }
+
+    if (communityFlashcardsError) {
+      return (
+        pageTitle(
+          'Flashcards',
+          'Choose a study set to begin.'
+        ) +
+
+        `<div class="card empty">
+          <strong>Unable to load flashcards.</strong>
+          <p>${esc(communityFlashcardsError)}</p>
+
+          <button
+            type="button"
+            class="btn primary"
+            data-action="reload-community-flashcards">
+            Retry
+          </button>
+        </div>`
+      );
+    }
+
     return (
       pageTitle(
         'Flashcards',
@@ -1936,60 +1985,93 @@ function flashcardsView() {
       ) +
 
       `<div class="flashcards-actions">
+
         <button
           type="button"
           class="btn primary"
           data-action="open-ai-flashcard-maker">
           ✨ AI Flashcard Maker
         </button>
+
       </div>` +
 
       `<div class="grid set-grid">
-        ${(data.sets || []).map(s => `
-          <div class="card set-card">
 
-            <h3>${esc(s.title || 'Untitled Study Set')}</h3>
+        ${
+          sets.length
+            ? sets.map(s => `
+              <div class="card set-card">
 
-            <p>${esc(s.subject || '')}</p>
+                <h3>
+                  ${esc(
+                    s.title ||
+                    'Untitled Study Set'
+                  )}
+                </h3>
 
-            <div class="set-meta">
-              ${(s.cards || []).length} cards
-            </div>
+                <p>
+                  ${esc(s.subject || '')}
+                </p>
 
-            <button
-              type="button"
-              class="btn primary"
-              style="margin-top:16px"
-              data-action="study-set"
-              data-id="${esc(s.id)}">
-              Start studying
-            </button>
+                ${
+                  s.description
+                    ? `<p class="set-description">
+                        ${esc(s.description)}
+                       </p>`
+                    : ''
+                }
 
-            <div class="set-card-actions">
+                <div class="set-meta">
+                  ${Number(s.cardCount || 0)} cards
+                </div>
 
-              <button
-                type="button"
-                class="btn"
-                data-action="edit-set"
-                data-id="${esc(s.id)}">
-                ✏️ Edit
-              </button>
+                <button
+                  type="button"
+                  class="btn primary"
+                  style="margin-top:16px"
+                  data-action="study-community-set"
+                  data-id="${esc(s.id)}">
+                  Start studying
+                </button>
 
-              <button
-                type="button"
-                class="btn danger"
-                data-action="delete-set"
-                data-id="${esc(s.id)}">
-                🗑️ Delete
-              </button>
+                <div class="set-card-actions">
 
-            </div>
+                  <button
+                    type="button"
+                    class="btn"
+                    data-action="edit-community-set"
+                    data-id="${esc(s.id)}">
+                    ✏️ Edit
+                  </button>
 
-          </div>
-        `).join('')}
+                  <button
+                    type="button"
+                    class="btn danger"
+                    data-action="delete-community-set"
+                    data-id="${esc(s.id)}">
+                    🗑️ Delete
+                  </button>
+
+                </div>
+
+              </div>
+            `).join('')
+            : `
+              <div class="card empty">
+                <h3>No community flashcard sets yet.</h3>
+
+                <p>
+                  Create your first study set using the AI
+                  Flashcard Maker.
+                </p>
+              </div>
+            `
+        }
+
       </div>`
     );
   }
+
 
   const s =
     data.sets.find(
@@ -3901,6 +3983,49 @@ async function communityFetch(path, options = {}) {
   return data;
 }
 
+async function loadCommunityFlashcards() {
+  if (communityFlashcardsLoaded) {
+    return communityFlashcardSets;
+  }
+
+  if (communityFlashcardsLoading) {
+    return communityFlashcardSets;
+  }
+
+  communityFlashcardsLoading = true;
+  communityFlashcardsError = null;
+
+  try {
+    communityFlashcardSets = await getCommunityFlashcards({
+      limit: 50
+    });
+
+    communityFlashcardsLoaded = true;
+
+    console.log(
+      'Community flashcard sets loaded:',
+      communityFlashcardSets
+    );
+
+    return communityFlashcardSets;
+  } catch (err) {
+    console.error(
+      'Failed to load community flashcards:',
+      err
+    );
+
+    communityFlashcardsError =
+      err?.message ||
+      'Failed to load flashcard sets.';
+
+    communityFlashcardSets = [];
+
+    return [];
+  } finally {
+    communityFlashcardsLoading = false;
+  }
+}
+
 async function initializeCommunitySession() {
   try {
     const data = await communityFetch('/api/auth/session', {
@@ -4035,11 +4160,14 @@ async function getCommunityFlashcards({
     params.set('subject', subject.trim());
   }
 
-  params.set('limit', String(Math.min(50, Math.max(1, limit))));
+  params.set(
+    'limit',
+    String(Math.min(50, Math.max(1, limit)))
+  );
 
-  const url = `${COMMUNITY_API.flashcards}?${params.toString()}`;
+  const path = `/api/flashcards?${params.toString()}`;
 
-  const result = await communityFetch(url);
+  const result = await communityFetch(path);
 
   return result.sets || [];
 }
@@ -4463,7 +4591,8 @@ async function openCommunityProfileModal() {
           body: JSON.stringify(payload)
         });
 
-        communityUser = result.user;
+        communityUser =
+          normalizeCommunityUser(result.user);
 
         updateCommunityHeader();
 
@@ -4504,7 +4633,9 @@ async function openCommunityProfileModal() {
 }
 
 function setupCommunityProfileForm(modal) {
-  const form = modal.querySelector('#community-profile-form');
+  const form =
+    modal.querySelector('#community-profile-form');
+
   const usernameInput =
     modal.querySelector('#community-profile-username');
 
@@ -4517,11 +4648,16 @@ function setupCommunityProfileForm(modal) {
   const saveButton =
     modal.querySelector('#community-profile-save');
 
-  let usernameAvailable = true;
+  let usernameAvailable = false;
   let usernameTimer = null;
+  let usernameCheckId = 0;
 
   async function checkUsername() {
-    const username = usernameInput.value.trim();
+    const username =
+      usernameInput.value.trim();
+
+    const currentCheckId =
+      ++usernameCheckId;
 
     if (!/^[A-Za-z0-9_]{3,24}$/.test(username)) {
       usernameAvailable = false;
@@ -4535,7 +4671,7 @@ function setupCommunityProfileForm(modal) {
     if (
       communityUser &&
       username.toLowerCase() ===
-        communityUser.username.toLowerCase()
+        String(communityUser.username || '').toLowerCase()
     ) {
       usernameAvailable = true;
 
@@ -4545,21 +4681,37 @@ function setupCommunityProfileForm(modal) {
       return true;
     }
 
-    usernameStatus.textContent = 'Checking username...';
+    usernameStatus.textContent =
+      'Checking username...';
 
     try {
-      const result = await communityFetch(
-        `/api/users/check-username?username=${encodeURIComponent(username)}`
-      );
+      const result =
+        await communityFetch(
+          `/api/users/check-username?username=${encodeURIComponent(username)}`
+        );
 
-      usernameAvailable = result.available === true;
+      // Ignore an older request if the username
+      // has changed since this request started.
+      if (currentCheckId !== usernameCheckId) {
+        return false;
+      }
 
-      usernameStatus.textContent = usernameAvailable
-        ? 'Username is available.'
-        : 'That username is already taken.';
+      usernameAvailable =
+        result.available === true;
+
+      usernameStatus.textContent =
+        usernameAvailable
+          ? 'Username is available.'
+          : 'That username is already taken.';
 
       return usernameAvailable;
+
     } catch (error) {
+      // Ignore errors from outdated requests.
+      if (currentCheckId !== usernameCheckId) {
+        return false;
+      }
+
       console.error(
         'Username availability check failed:',
         error
@@ -4593,7 +4745,8 @@ function setupCommunityProfileForm(modal) {
     errorBox.hidden = true;
     errorBox.textContent = '';
 
-    const validUsername = await checkUsername();
+    const validUsername =
+      await checkUsername();
 
     if (!validUsername) {
       errorBox.textContent =
@@ -4604,35 +4757,47 @@ function setupCommunityProfileForm(modal) {
     }
 
     const payload = {
-      username: usernameInput.value.trim(),
+      username:
+        usernameInput.value.trim(),
 
       displayName:
         modal
-          .querySelector('#community-profile-display-name')
+          .querySelector(
+            '#community-profile-display-name'
+          )
           .value
           .trim(),
 
       avatarUrl:
         modal
-          .querySelector('#community-profile-avatar')
+          .querySelector(
+            '#community-profile-avatar'
+          )
           .value
           .trim(),
 
       bio:
         modal
-          .querySelector('#community-profile-bio')
+          .querySelector(
+            '#community-profile-bio'
+          )
           .value
           .trim()
     };
 
     saveButton.disabled = true;
-    saveButton.textContent = 'Saving...';
+    saveButton.textContent =
+      'Saving...';
 
     try {
-      const result = await communityFetch('/api/users/me', {
-        method: 'PATCH',
-        body: JSON.stringify(payload)
-      });
+      const result =
+        await communityFetch(
+          '/api/users/me',
+          {
+            method: 'PATCH',
+            body: JSON.stringify(payload)
+          }
+        );
 
       if (!result?.user) {
         throw new Error(
@@ -4640,20 +4805,32 @@ function setupCommunityProfileForm(modal) {
         );
       }
 
-      communityUser = result.user;
+      communityUser =
+        normalizeCommunityUser(
+          result.user
+        );
 
       console.log(
         'Community profile updated:',
         communityUser
       );
+
       updateCommunityHeader();
+
       closeCommunityProfileModal();
 
-      if (typeof renderCommunityUser === 'function') {
-        renderCommunityUser(communityUser);
+      if (
+        typeof renderCommunityUser ===
+        'function'
+      ) {
+        renderCommunityUser(
+          communityUser
+        );
       }
 
-      if (typeof render === 'function') {
+      if (
+        typeof render === 'function'
+      ) {
         render();
       }
 
@@ -4671,7 +4848,8 @@ function setupCommunityProfileForm(modal) {
       errorBox.hidden = false;
 
       saveButton.disabled = false;
-      saveButton.textContent = 'Save Profile';
+      saveButton.textContent =
+        'Save Profile';
     }
   });
 }
@@ -4745,6 +4923,29 @@ function updateCommunityHeader() {
 /* ---------- event binding (delegated — works for modals too) ---------- */
 function action(a, id, index, el) {
   console.log('ACTION:', a, el);
+    if (a === 'clear-community-search') {
+    clearCommunitySearch();
+    return;
+  }
+
+  if (a === 'view-community-user') {
+    return openCommunityUserProfile(
+      el?.dataset.id || '',
+      el?.dataset.username || ''
+    );
+  }
+
+  if (a === 'view-community-set') {
+    return openCommunityFlashcardSet(
+      id
+    );
+  }
+
+  if (a === 'add-community-set') {
+    return addCommunitySetToWorkspace(
+      id
+    );
+  }
   if (a === 'search-go') {
     return goSearchResult(el?.dataset.type || '', id, el?.dataset.route || '');
   }
@@ -5798,192 +5999,511 @@ document.querySelector('#resetData').addEventListener('click', () => {
   }
 });
 /* ---------- global search ---------- */
-function collectSearchHits(q) {
-  const query = q.trim().toLowerCase();
-  if (!query) return [];
-  const groups = [];
-  const match = (s) => String(s || '').toLowerCase().includes(query);
+/* ---------- global community search ---------- */
 
-  const classes = data.classes.filter(x => match(x.name) || match(x.category));
-  if (classes.length) {
-    groups.push({
-      label: 'Classes',
-      items: classes.map(x => ({
-        id: x.id, type: 'class', route: 'classes',
-        title: x.name, sub: x.category || 'Class',
-        icon: '▣', iconClass: 'purple'
-      }))
-    });
-  }
-  const sets = data.sets.filter(x => match(x.title) || match(x.subject));
-  if (sets.length) {
-    groups.push({
-      label: 'Study Sets',
-      items: sets.map(x => ({
-        id: x.id, type: 'set', route: 'flashcards',
-        title: x.title, sub: `${x.subject || 'Set'} · ${x.cards.length} cards`,
-        icon: '▧', iconClass: 'green'
-      }))
-    });
-  }
-  const notes = data.notes.filter(x => match(x.title) || match(x.subject) || match(x.body));
-  if (notes.length) {
-    groups.push({
-      label: 'Notes',
-      items: notes.map(x => ({
-        id: x.id, type: 'note', route: 'notes',
-        title: x.title, sub: x.subject || 'Note',
-        icon: '☑', iconClass: 'blue'
-      }))
-    });
-  }
-  const quizzes = data.quizzes.filter(x => match(x.title) || match(x.subject));
-  if (quizzes.length) {
-    groups.push({
-      label: 'Quizzes',
-      items: quizzes.map(x => ({
-        id: x.id, type: 'quiz', route: 'quizzes',
-        title: x.title, sub: `${x.subject || 'Quiz'} · ${x.questions.length} questions`,
-        icon: '◈', iconClass: 'orange'
-      }))
-    });
-  }
-  const books = data.books.filter(x => match(x.title) || match(x.author) || match(x.course));
-  if (books.length) {
-    groups.push({
-      label: 'Library',
-      items: books.map(x => ({
-        id: x.id, type: 'book', route: 'library',
-        title: x.title, sub: `${x.author || ''} · ${x.course || ''}`.replace(/^ · | · $/g, ''),
-        icon: '▤', iconClass: 'blue'
-      }))
-    });
-  }
-  return groups;
-}
+let communitySearchRequest = null;
 
-function renderSearchResults(q) {
-  const panel = document.querySelector('#searchResults');
-  const clearBtn = document.querySelector('#searchClear');
-  if (!panel) return;
-  const query = (q || '').trim();
-  if (clearBtn) clearBtn.hidden = !query;
-  if (!query) {
-    panel.hidden = true;
-    panel.classList.remove('open');
-    panel.innerHTML = '';
-    return;
-  }
-  const groups = collectSearchHits(query);
-  panel.hidden = false;
-  panel.classList.add('open');
-  if (!groups.length) {
-    panel.innerHTML = `<div class="search-empty">No matches for “${esc(query)}”</div>`;
-    return;
-  }
-  panel.innerHTML = groups.map(g =>
-    `<div class="search-group">${esc(g.label)}</div>` +
-    g.items.map(item =>
-      `<button type="button" class="search-item" data-action="search-go"
-        data-type="${esc(item.type)}" data-id="${esc(item.id)}" data-route="${esc(item.route)}">
-        <span class="si-icon ${esc(item.iconClass)}">${item.icon}</span>
-        <span class="si-body">
-          <span class="si-title">${esc(item.title)}</span>
-          <span class="si-sub">${esc(item.sub)}</span>
-        </span>
-      </button>`
-    ).join('')
-  ).join('');
-}
+async function performCommunitySearch(query) {
+  const q = String(query || '').trim();
 
-function closeSearch() {
-  const panel = document.querySelector('#searchResults');
-  const input = document.querySelector('#globalSearch');
-  const clearBtn = document.querySelector('#searchClear');
-  if (panel) { panel.hidden = true; panel.classList.remove('open'); panel.innerHTML = ''; }
-  if (clearBtn) clearBtn.hidden = true;
-  if (input) input.value = '';
-}
-
-function goSearchResult(type, id, route) {
-  closeSearch();
-
-  if (type === 'set') {
-    studySet(id);
+  if (!q) {
+    go('home');
     return;
   }
 
-  if (type === 'quiz') {
-    go('quizzes');
-
-    // Slight delay so the view is ready, then open quiz
-    setTimeout(() => takeQuiz(id), 50);
-    return;
+  /*
+   * Abort an older search if the user submits another one.
+   */
+  if (communitySearchRequest) {
+    communitySearchRequest.abort();
   }
 
-  if (type === 'book') {
-    const book = data.books?.find(book => book.id === id);
+  communitySearchRequest = new AbortController();
 
-    if (!book) {
-      toast('Book not found');
+  /*
+   * Show the search results in the HOME view.
+   */
+  route = 'home';
+
+  const container = document.querySelector('#app');
+
+  if (container) {
+    container.innerHTML = `
+      <section class="search-page">
+        <div class="search-page-header">
+          <button
+            type="button"
+            class="btn"
+            data-action="clear-community-search"
+          >
+            ← Back
+          </button>
+
+          <div>
+            <h1>Search</h1>
+            <p>
+              Searching for
+              <strong>${esc(q)}</strong>
+            </p>
+          </div>
+        </div>
+
+        <div class="search-page-loading">
+          Searching EcE Hub...
+        </div>
+      </section>
+    `;
+  }
+
+  try {
+    const response = await communityFetch(
+      `/api/search?q=${encodeURIComponent(q)}`,
+      {
+        method: 'GET',
+        signal: communitySearchRequest.signal
+      }
+    );
+
+    renderCommunitySearchResults(
+      response,
+      q
+    );
+
+  } catch (error) {
+
+    if (error?.name === 'AbortError') {
       return;
     }
 
-    // Go to the library
-    go('library');
+    console.error(
+      'Community search failed:',
+      error
+    );
 
-    // Open the folder containing the book
-    if (book.folderId) {
-      libraryFolderId = book.folderId;
+    if (container) {
+      container.innerHTML = `
+        <section class="search-page">
+
+          <div class="search-page-header">
+            <button
+              type="button"
+              class="btn"
+              data-action="clear-community-search"
+            >
+              ← Back
+            </button>
+
+            <div>
+              <h1>Search</h1>
+              <p>
+                Search failed for
+                <strong>${esc(q)}</strong>
+              </p>
+            </div>
+          </div>
+
+          <div class="search-empty">
+            Unable to search EcE Hub right now.
+          </div>
+
+        </section>
+      `;
     }
+  }
+}
 
-    render();
 
-    // Open the PDF after the library view is ready
-    setTimeout(() => {
-      const currentBook = data.books?.find(book => book.id === id);
+function renderCommunitySearchResults(
+  result,
+  query
+) {
+  const container =
+    document.querySelector('#app');
 
-      if (!currentBook) {
-        toast('Book not found');
-        return;
+  if (!container) return;
+
+  const users =
+    Array.isArray(result?.users)
+      ? result.users
+      : [];
+
+  const flashcards =
+    Array.isArray(result?.flashcards)
+      ? result.flashcards
+      : [];
+
+  const total =
+    users.length +
+    flashcards.length;
+
+  container.innerHTML = `
+    <section class="search-page">
+
+      <div class="search-page-header">
+
+        <button
+          type="button"
+          class="btn"
+          data-action="clear-community-search"
+        >
+          ← Back
+        </button>
+
+        <div>
+          <h1>Search results</h1>
+
+          <p>
+            Results for
+            <strong>“${esc(query)}”</strong>
+          </p>
+        </div>
+
+      </div>
+
+
+      ${
+        total === 0
+          ? `
+            <div class="search-empty">
+              No results found for
+              “${esc(query)}”.
+            </div>
+          `
+          : ''
       }
 
-      if (!currentBook.driveUrl && !currentBook.url) {
-        toast('No PDF link configured');
-        return;
+
+      ${
+        users.length
+          ? `
+            <section class="search-result-section">
+
+              <div class="search-result-section-header">
+                <h2>People</h2>
+                <span>
+                  ${users.length}
+                </span>
+              </div>
+
+              <div class="search-user-list">
+
+                ${users.map(user => {
+
+                  const name =
+                    user.displayName ||
+                    user.username ||
+                    'Student';
+
+                  const initial =
+                    name
+                      .trim()
+                      .charAt(0)
+                      .toUpperCase() ||
+                    'S';
+
+                  return `
+                    <article
+                      class="search-user-card"
+                    >
+
+                      <div class="search-user-avatar">
+
+                        ${
+                          user.avatarUrl
+                            ? `
+                              <img
+                                src="${esc(user.avatarUrl)}"
+                                alt=""
+                                onerror="
+                                  this.style.display='none';
+                                  this.nextElementSibling.style.display='flex';
+                                "
+                              >
+
+                              <span
+                                class="search-avatar-fallback"
+                                style="display:none;"
+                              >
+                                ${esc(initial)}
+                              </span>
+                            `
+                            : `
+                              <span
+                                class="search-avatar-fallback"
+                              >
+                                ${esc(initial)}
+                              </span>
+                            `
+                        }
+
+                      </div>
+
+
+                      <div class="search-user-info">
+
+                        <strong>
+                          ${esc(name)}
+                        </strong>
+
+                        <span>
+                          @${esc(
+                            user.username ||
+                            'guest'
+                          )}
+                        </span>
+
+                        ${
+                          user.bio
+                            ? `
+                              <small>
+                                ${esc(user.bio)}
+                              </small>
+                            `
+                            : ''
+                        }
+
+                      </div>
+
+
+                      <button
+                        type="button"
+                        class="btn"
+                        data-action="view-community-user"
+                        data-id="${esc(user.id)}"
+                        data-username="${esc(
+                          user.username || ''
+                        )}"
+                      >
+                        View profile
+                      </button>
+
+                    </article>
+                  `;
+
+                }).join('')}
+
+              </div>
+
+            </section>
+          `
+          : ''
       }
 
-      const pdfUrl = currentBook.driveUrl || currentBook.url;
 
-      window.open(pdfUrl, '_blank');
-    }, 50);
+      ${
+        flashcards.length
+          ? `
+            <section class="search-result-section">
 
-    return;
+              <div class="search-result-section-header">
+                <h2>Flashcards</h2>
+                <span>
+                  ${flashcards.length}
+                </span>
+              </div>
+
+              <div class="search-flashcard-list">
+
+                ${flashcards.map(set => {
+
+                  const author =
+                    set.author || {};
+
+                  const authorName =
+                    author.displayName ||
+                    author.username ||
+                    'Student';
+
+                  return `
+                    <article
+                      class="search-flashcard-card"
+                    >
+
+                      <div
+                        class="search-flashcard-content"
+                      >
+
+                        <h3>
+                          ${esc(
+                            set.title ||
+                            'Untitled set'
+                          )}
+                        </h3>
+
+                        ${
+                          set.subject
+                            ? `
+                              <span
+                                class="search-flashcard-subject"
+                              >
+                                ${esc(
+                                  set.subject
+                                )}
+                              </span>
+                            `
+                            : ''
+                        }
+
+                        ${
+                          set.description
+                            ? `
+                              <p>
+                                ${esc(
+                                  set.description
+                                )}
+                              </p>
+                            `
+                            : ''
+                        }
+
+                        <div
+                          class="search-flashcard-meta"
+                        >
+                          <span>
+                            ${Number(
+                              set.cardCount || 0
+                            )} cards
+                          </span>
+
+                          <span>
+                            by
+                            ${esc(authorName)}
+
+                            ${
+                              author.username
+                                ? `
+                                  · @${esc(
+                                    author.username
+                                  )}
+                                `
+                                : ''
+                            }
+                          </span>
+                        </div>
+
+                      </div>
+
+
+                      <div
+                        class="search-flashcard-actions"
+                      >
+
+                        <button
+                          type="button"
+                          class="btn"
+                          data-action="view-community-set"
+                          data-id="${esc(set.id)}"
+                        >
+                          View
+                        </button>
+
+                        <button
+                          type="button"
+                          class="btn primary"
+                          data-action="add-community-set"
+                          data-id="${esc(set.id)}"
+                        >
+                          + Add to Workspace
+                        </button>
+
+                      </div>
+
+                    </article>
+                  `;
+
+                }).join('')}
+
+              </div>
+
+            </section>
+          `
+          : ''
+      }
+
+    </section>
+  `;
+}
+
+
+function clearCommunitySearch() {
+  const input =
+    document.querySelector('#globalSearch');
+
+  if (input) {
+    input.value = '';
   }
 
-  go(route || 'home');
+  go('home');
+
+  window.scrollTo(0, 0);
 }
-const searchInput = document.querySelector('#globalSearch');
+
+
+/*
+ * Global search bar.
+ *
+ * IMPORTANT:
+ * Search results are no longer rendered
+ * into #searchResults.
+ *
+ * Pressing ENTER performs a full search
+ * and replaces the Home view.
+ */
+
+const searchInput =
+  document.querySelector('#globalSearch');
+
 if (searchInput) {
-  searchInput.addEventListener('input', e => renderSearchResults(e.target.value));
-  searchInput.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-      closeSearch();
-      searchInput.blur();
+
+  searchInput.addEventListener(
+    'keydown',
+    event => {
+
+      if (event.key === 'Escape') {
+        searchInput.value = '';
+        searchInput.blur();
+        return;
+      }
+
+      if (event.key === 'Enter') {
+
+        event.preventDefault();
+
+        const query =
+          searchInput.value.trim();
+
+        if (!query) return;
+
+        performCommunitySearch(query);
+      }
     }
-  });
-  searchInput.addEventListener('focus', e => {
-    if (e.target.value.trim()) renderSearchResults(e.target.value);
-  });
+  );
+
 }
-const searchClear = document.querySelector('#searchClear');
+
+
+/*
+ * Clear button.
+ */
+
+const searchClear =
+  document.querySelector('#searchClear');
+
 if (searchClear) {
-  searchClear.addEventListener('click', e => {
-    e.preventDefault();
-    closeSearch();
-    document.querySelector('#globalSearch')?.focus();
-  });
+
+  searchClear.addEventListener(
+    'click',
+    event => {
+
+      event.preventDefault();
+
+      clearCommunitySearch();
+
+    }
+  );
+
 }
+
 document.addEventListener('click', e => {
   const wrap = document.querySelector('#searchWrap');
   if (wrap && !wrap.contains(e.target)) {
