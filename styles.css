@@ -2049,34 +2049,33 @@ body.nav-locked{overflow:hidden !important}
    TOPBAR PROFILE
    ========================= */
 
-.profile {
+.profile[data-action="edit-profile"] {
+  background-image: none !important;
+  background-color: var(--background);
+  color: var(--primary);
+
   display: flex;
   align-items: center;
   gap: 10px;
 
   padding: 4px 6px;
-
   border: 0;
-  background: transparent;
-
-  color: inherit;
-
   cursor: pointer;
   border-radius: 10px;
 
   font: inherit;
 
   transition:
-    background .15s ease,
-    transform .15s ease;
+    background 0.15s ease,
+    transform 0.15s ease;
 }
 
-.profile:hover {
-  background: var(--surface-2, rgba(127,127,127,.08));
+.profile[data-action="edit-profile"]:hover {
+  background-color: var(--card);
 }
 
-.profile:active {
-  transform: scale(.98);
+.profile[data-action="edit-profile"]:active {
+  transform: scale(0.98);
 }
 
 .profile-info {
@@ -2222,4 +2221,56 @@ body.nav-locked{overflow:hidden !important}
 .btn.primary[data-action="edit-profile"].has-avatar {
   /* reset any avatar-specific styles */
   padding: 0.6rem 1.2rem; /* normal button padding */
+}
+
+.community-profile-avatar {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.community-profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.community-profile-avatar {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.community-profile-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.community-profile-avatar .profile-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}.profile-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
 }

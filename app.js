@@ -694,20 +694,13 @@ function toggleTheme() {
 })();
 
 function updateChrome() {
-  const displayNameEl =
-    document.getElementById('displayName');
-
   const usernameEl =
     document.getElementById('headerUsername');
 
   const avatarEl =
-    document.getElementById('communityProfileAvatar') ||
-    document.getElementById('headerAvatar');
+    document.getElementById('communityProfileAvatar');
 
   if (!communityUser) {
-    if (displayNameEl) {
-      displayNameEl.textContent = 'Student';
-    }
 
     if (usernameEl) {
       usernameEl.textContent = '';
@@ -716,7 +709,7 @@ function updateChrome() {
     if (avatarEl) {
       avatarEl.innerHTML = `
         <span class="profile-avatar-fallback">
-          S
+          ?
         </span>
       `;
     }
@@ -733,10 +726,6 @@ function updateChrome() {
     communityUser.username ||
     '';
 
-  if (displayNameEl) {
-    displayNameEl.textContent = displayName;
-  }
-
   if (usernameEl) {
     usernameEl.textContent =
       username ? `@${username}` : '';
@@ -745,6 +734,18 @@ function updateChrome() {
   if (avatarEl) {
     avatarEl.innerHTML =
       communityProfileAvatar();
+  }
+
+  const profileButton =
+    document.getElementById('communityProfileButton');
+
+  if (profileButton) {
+    profileButton.setAttribute(
+      'aria-label',
+      `Edit profile: ${displayName}${
+        username ? ` (@${username})` : ''
+      }`
+    );
   }
 }
 
@@ -3907,18 +3908,39 @@ async function initializeCommunitySession() {
     });
 
     if (!data?.user) {
-      throw new Error('Community session response did not contain a user.');
+      throw new Error(
+        'Community session response did not contain a user.'
+      );
     }
 
-    communityUser = normalizeCommunityUser(data.user);
+    communityUser =
+      normalizeCommunityUser(data.user);
 
-    console.log('Community session initialized:', communityUser);
+    communityReady = true;
+
+    console.log(
+      'Community session initialized:',
+      communityUser
+    );
+
+    // Update the already-rendered header with the
+    // freshly loaded community profile/avatar.
+    updateChrome();
+    updateCommunityUserUI?.();
 
     return communityUser;
+
   } catch (err) {
-    console.error('Failed to initialize community session:', err);
+
+    console.error(
+      'Failed to initialize community session:',
+      err
+    );
 
     communityUser = null;
+    communityReady = false;
+
+    updateChrome();
 
     return null;
   }
