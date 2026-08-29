@@ -32,34 +32,32 @@
     </nav>
     <div class="guest-card"><div><span>Local workspace</span></div><button id="resetData">Reset Data</button></div>
   </aside>
-
   <main class="main">
-  <header class="topbar">
-    <button type="button" class="menu-button" id="menuButton" aria-label="Open menu">☰</button>
-    <div class="search" id="searchWrap">
-      <span class="search-icon">⌕</span>
-      <input id="globalSearch" type="search" placeholder="Search notes, sets, quizzes, PDFs..." autocomplete="off">
-      <button type="button" class="search-clear" id="searchClear" hidden aria-label="Clear search">×</button>
-      <div class="search-results" id="searchResults" hidden></div>
-    </div>
-    <div class="top-actions">
-      <button type="button" class="icon-button" id="themeButton" aria-label="Toggle theme">☾</button>
-      <button type="button" class="icon-button" id="helpButton" aria-label="Help">?</button>
-      <div class="profile-divider"></div>
-      <button type="button" class="profile" id="communityProfileButton" data-action="edit-profile" aria-label="Edit profile">
-        <div class="community-profile-avatar" id="communityProfileAvatar"></div>
-        <div class="profile-info"><span id="headerUsername"></span></div>
-      </button>
-    </div>
-  </header>
-  <section class="content" id="content"></section>
+    <header class="topbar">
+      <button type="button" class="menu-button" id="menuButton" aria-label="Open menu">☰</button>
+      <div class="search" id="searchWrap">
+        <span class="search-icon">⌕</span>
+        <input id="globalSearch" type="search" placeholder="Search notes, sets, quizzes, PDFs..." autocomplete="off">
+        <button type="button" class="search-clear" id="searchClear" hidden aria-label="Clear search">×</button>
+        <div class="search-results" id="searchResults" hidden></div>
+      </div>
+      <div class="top-actions">
+        <button type="button" class="icon-button" id="themeButton" aria-label="Toggle theme">☾</button>
+        <button type="button" class="icon-button" id="helpButton" aria-label="Help">?</button>
+        <div class="profile-divider"></div>
+        <button type="button" class="profile" id="communityProfileButton" data-action="edit-profile" aria-label="Edit profile">
+          <div class="community-profile-avatar" id="communityProfileAvatar"></div>
+          <div class="profile-info"><span id="headerUsername"></span></div>
+        </button>
+      </div>
+    </header>
+    <section class="content" id="content"></section>
   </main>
 </div>
 <div class="modal-backdrop" id="modalBackdrop"><div class="modal" id="modal"></div></div>
 <div class="toast" id="toast"></div>
 <script src="community-auth-fix.js?v=1"></script>
 <script src="app.js?v=14"></script>
-<script src="global-search.js?v=1"></script>
 <script src="search-fix.js?v=1"></script>
 <script src="home-community.js?v=1"></script>
 </body>
