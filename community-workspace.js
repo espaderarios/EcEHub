@@ -169,12 +169,12 @@
   }
 
   function communityCard(set) {
-    const owned = set.owned;
+    const owned = set.owned === true;
     const badge = owned ? 'Your community set' : 'Added to workspace';
     const visibility = set.visibility === 'private' ? 'Private' : 'Public';
 
     return `
-      <article class="card workspace-flashcard-card">
+      <article class="card workspace-flashcard-card" data-community-owned="${owned ? 'true' : 'false'}" data-community-set-id="${esc(set.id)}">
         <div class="workspace-flashcard-top">
           <span class="workspace-flashcard-icon">▧</span>
           <span class="workspace-flashcard-badge ${set.visibility === 'private' ? 'private' : ''}">${visibility}</span>
@@ -191,6 +191,12 @@
         </div>
         ${owned ? `<div class="workspace-flashcard-note">Edit this set to switch between Public and Private.</div>` : ''}
       </article>`;
+  }
+
+  function sanitizeEditControls() {
+    document.querySelectorAll('.workspace-flashcard-card[data-community-owned="false"] [data-action="edit-community-set"]').forEach(button => {
+      button.remove();
+    });
   }
 
   function injectStyles() {
@@ -224,6 +230,7 @@
       .workspace-flashcard-actions .btn{flex:1;min-width:76px;white-space:nowrap}
       .workspace-flashcard-note{margin-top:11px;color:var(--muted);font-size:12px}
       .workspace-flashcards-empty{padding:22px;text-align:center;color:var(--muted)}
+      .workspace-flashcard-card[data-community-owned="false"] [data-action="edit-community-set"]{display:none!important}
       @media(max-width:1100px){.workspace-flashcards-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
       @media(max-width:650px){.workspace-flashcards-grid{grid-template-columns:1fr}.workspace-flashcards-toolbar,.workspace-flashcards-section-head{align-items:flex-start;flex-direction:column}}
     `;
@@ -262,7 +269,7 @@
 
       const signature = JSON.stringify({
         local: localSets.map(s => [s.id, s.title, Array.isArray(s.cards) ? s.cards.length : 0]),
-        community: community.map(s => [s.id, s.visibility, s.cardCount, s.source]).sort()
+        community: community.map(s => [s.id, s.visibility, s.cardCount, s.source, s.owned]).sort()
       });
 
       if (!force && signature === lastSignature) return;
@@ -309,6 +316,7 @@
       `;
 
       content.appendChild(root);
+      sanitizeEditControls();
     } catch (error) {
       console.warn('Unified flashcards workspace unavailable:', error);
     } finally {
@@ -336,15 +344,16 @@
 
   const observer = new MutationObserver(() => {
     const active = !!document.querySelector('.nav-item[data-route="flashcards"].active');
-    if (active && !document.querySelector('.workspace-flashcards-root')) {
-      render();
+    if (active) {
+      sanitizeEditControls();
+      if (!document.querySelector('.workspace-flashcards-root')) render();
     }
   });
 
   function install() {
     injectStyles();
     const content = document.getElementById('content');
-    if (content) observer.observe(content, { childList: true });
+    if (content) observer.observe(content, { childList: true, subtree: true });
     setTimeout(() => render(), 350);
     console.log('EcE Hub unified Flashcards workspace installed.');
   }
