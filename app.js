@@ -866,7 +866,11 @@ function render() {
   document.querySelectorAll('.nav-item').forEach(b =>
     b.classList.toggle(
       'active',
-      b.dataset.route === route
+      b.dataset.route === route ||
+      (
+        route.startsWith('explore-') &&
+        b.dataset.route === 'explore'
+      )
     )
   );
 
@@ -876,7 +880,12 @@ function render() {
     home: homeView,
     classes: classesView,
     library: libraryView,
+
     explore: exploreView,
+
+    'explore-circuits': () =>
+      window.ExploreGames.circuitChallengeView(),
+
     quizzes: quizzesView,
     tools: toolsView,
     sets: setsView,
@@ -1789,11 +1798,251 @@ function openBookForm(book = null, folderId = '') {
 
 function exploreView() {
   return (
-    pageTitle('Explore', 'Discover resources across your EcE workspace.') +
-    `<div class="card">
-      <h2>Explore is ready for your content</h2>
-      <p style="color:var(--muted)">This area can become the shared resource/discovery layer later. For now, use Library, Classes, Sets and Quizzes to build your personal workspace.</p>
-    </div>`
+    pageTitle(
+      'Explore',
+      'Learn, practice, and challenge yourself.'
+    ) +
+
+    `
+    <section class="explore-page">
+
+      <!-- Featured Game -->
+      <section class="explore-featured">
+
+        <div class="explore-featured-content">
+
+          <div class="explore-game-icon">
+            ⚡
+          </div>
+
+          <span class="explore-eyebrow">
+            FEATURED GAME
+          </span>
+
+          <h2>
+            Circuit Challenge
+          </h2>
+
+          <p>
+            Test your circuit analysis skills using
+            real engineering problems.
+          </p>
+
+          <div class="explore-meta">
+            <span>⚡ Electronics</span>
+            <span>7 Challenges</span>
+            <span>Beginner → Advanced</span>
+          </div>
+
+          <button
+            type="button"
+            class="btn primary explore-play-btn"
+            data-action="open-circuit-challenge">
+            Play Now
+          </button>
+
+        </div>
+
+        <div class="explore-featured-decoration">
+          ⚡
+        </div>
+
+      </section>
+
+
+      <!-- Games -->
+      <section class="explore-section">
+
+        <div class="section-head">
+          <div>
+            <h2>Games</h2>
+
+            <p class="explore-section-subtitle">
+              Learn through interactive challenges.
+            </p>
+          </div>
+        </div>
+
+
+        <div class="explore-game-grid">
+
+
+          <!-- Circuit Challenge -->
+          <article class="explore-game-card">
+
+            <div class="explore-card-icon">
+              ⚡
+            </div>
+
+            <div class="explore-card-body">
+
+              <span class="explore-card-category">
+                ELECTRONICS
+              </span>
+
+              <h3>
+                Circuit Challenge
+              </h3>
+
+              <p>
+                Solve circuit problems and test your
+                analysis skills.
+              </p>
+
+              <div class="explore-card-footer">
+
+                <span>
+                  7 challenges
+                </span>
+
+                <button
+                  type="button"
+                  class="btn primary"
+                  data-action="open-circuit-challenge">
+                  Play
+                </button>
+
+              </div>
+
+            </div>
+
+          </article>
+
+
+          <!-- Logic Gates -->
+          <article class="explore-game-card explore-game-disabled">
+
+            <div class="explore-card-icon">
+              🧠
+            </div>
+
+            <div class="explore-card-body">
+
+              <span class="explore-card-category">
+                DIGITAL LOGIC
+              </span>
+
+              <h3>
+                Logic Gate Lab
+              </h3>
+
+              <p>
+                Practice AND, OR, NOT, NAND, NOR,
+                XOR and more.
+              </p>
+
+              <div class="explore-card-footer">
+
+                <span>
+                  Coming soon
+                </span>
+
+              </div>
+
+            </div>
+
+          </article>
+
+
+          <!-- Components -->
+          <article class="explore-game-card explore-game-disabled">
+
+            <div class="explore-card-icon">
+              🔧
+            </div>
+
+            <div class="explore-card-body">
+
+              <span class="explore-card-category">
+                ELECTRONIC COMPONENTS
+              </span>
+
+              <h3>
+                Component Match
+              </h3>
+
+              <p>
+                Identify electronic components
+                and learn what they do.
+              </p>
+
+              <div class="explore-card-footer">
+
+                <span>
+                  Coming soon
+                </span>
+
+              </div>
+
+            </div>
+
+          </article>
+
+
+          <!-- Engineering Math -->
+          <article class="explore-game-card explore-game-disabled">
+
+            <div class="explore-card-icon">
+              📐
+            </div>
+
+            <div class="explore-card-body">
+
+              <span class="explore-card-category">
+                ENGINEERING MATH
+              </span>
+
+              <h3>
+                Engineering Math
+              </h3>
+
+              <p>
+                Practice the mathematics used
+                throughout engineering.
+              </p>
+
+              <div class="explore-card-footer">
+
+                <span>
+                  Coming soon
+                </span>
+
+              </div>
+
+            </div>
+
+          </article>
+
+
+        </div>
+
+      </section>
+
+
+      <!-- More Games -->
+      <section class="explore-coming-soon">
+
+        <div class="explore-coming-icon">
+          ✨
+        </div>
+
+        <div>
+
+          <h3>
+            More games are coming
+          </h3>
+
+          <p>
+            Logic, mathematics, signals, programming,
+            electronics, and more.
+          </p>
+
+        </div>
+
+      </section>
+
+    </section>
+    `
   );
 }
 
@@ -4974,6 +5223,36 @@ function action(a, id, index, el) {
     return;
   }
 
+   if (a === 'open-circuit-challenge') {
+    window.ExploreGames.startCircuitChallenge();
+    return;
+  }
+
+  if (a === 'circuit-submit') {
+    window.ExploreGames.submitCircuitAnswer();
+    return;
+  }
+
+  if (a === 'circuit-show-solution') {
+    window.ExploreGames.showCircuitSolution();
+    return;
+  }
+
+  if (a === 'circuit-next') {
+    window.ExploreGames.nextCircuitQuestion();
+    return;
+  }
+
+  if (a === 'restart-circuit-challenge') {
+    window.ExploreGames.restartCircuitChallenge();
+    return;
+  }
+
+  if (a === 'exit-circuit-challenge') {
+    window.ExploreGames.exitCircuitChallenge();
+    return;
+  }
+  
   if (a === 'view-community-user') {
     return openCommunityUserProfile(
       el?.dataset.id || '',
