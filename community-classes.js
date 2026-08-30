@@ -8,10 +8,11 @@
 (() => {
   'use strict';
 
+  const LOCAL_KEY = 'eceHubDataV3';
   const text = value => String(value ?? '').trim();
   const esc = value => String(value ?? '')
     .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;',)
+    .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
@@ -19,11 +20,20 @@
   let activeKey = '';
   let loading = false;
 
+  function localData() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(LOCAL_KEY) || '{}');
+      return raw && typeof raw === 'object' ? raw : {};
+    } catch {
+      return {};
+    }
+  }
+
   function currentClass() {
-    const id = window.activeClassId || null;
-    const classes = Array.isArray(window.data?.classes) ? window.data.classes : [];
-    if (!id) return null;
-    return classes.find(item => item.id === id) || null;
+    const classes = Array.isArray(localData().classes) ? localData().classes : [];
+    const heading = text(document.querySelector('#content h1')?.textContent);
+    if (!heading) return null;
+    return classes.find(item => text(item.name).toLowerCase() === heading.toLowerCase()) || null;
   }
 
   function classDetailIsVisible() {
