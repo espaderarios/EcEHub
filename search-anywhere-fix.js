@@ -46,6 +46,7 @@
 
     const hidden = HIDDEN_ROUTES.has(currentRoute());
     wrap.classList.toggle('global-search-route-hidden', hidden);
+    wrap.hidden = hidden;
     wrap.setAttribute('aria-hidden', hidden ? 'true' : 'false');
 
     if (hidden) {
