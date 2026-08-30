@@ -3,12 +3,16 @@
  * The legacy live-search fix only runs while Home is active. That means
  * opening Library/Classes/etc. leaves the top search field to the older
  * People-only search shim. This file owns the dropdown everywhere.
+ *
+ * The search bar itself is intentionally hidden on routes where a global
+ * search is not useful: Classes, Flashcards, Notes, and Study Tools.
  */
 (() => {
   'use strict';
 
   const API = 'https://ecehub-community.ecehub-ai-backend.workers.dev';
   const LIBRARY_URL = new URL('library.json', document.baseURI).href;
+  const HIDDEN_ROUTES = new Set(['classes', 'flashcards', 'notes', 'tools']);
   const state = { books: null, timer: 0, request: 0 };
 
   const text = value => String(value ?? '').trim();
@@ -27,6 +31,29 @@
         || '';
     } catch {
       return '';
+    }
+  }
+
+  function currentRoute() {
+    return document.querySelector('.nav-item.active')?.dataset?.route || '';
+  }
+
+  function syncSearchVisibility() {
+    const wrap = document.getElementById('searchWrap');
+    const input = document.getElementById('globalSearch');
+    const panel = document.getElementById('searchResults');
+    if (!wrap) return;
+
+    const hidden = HIDDEN_ROUTES.has(currentRoute());
+    wrap.classList.toggle('global-search-route-hidden', hidden);
+    wrap.setAttribute('aria-hidden', hidden ? 'true' : 'false');
+
+    if (hidden) {
+      if (input) input.value = '';
+      if (panel) {
+        panel.hidden = true;
+        panel.innerHTML = '';
+      }
     }
   }
 
@@ -137,6 +164,8 @@
   }
 
   async function search(input, panel, value) {
+    if (HIDDEN_ROUTES.has(currentRoute())) return;
+
     const q = lower(value);
     const requestId = ++state.request;
     if (!q) {
@@ -182,9 +211,11 @@
   function install() {
     const input = document.getElementById('globalSearch');
     const panel = document.getElementById('searchResults');
-    if (!input || !panel || input.dataset.searchAnywhereInstalled === '1') return;
+    const wrap = document.getElementById('searchWrap');
+    if (!input || !panel || !wrap || input.dataset.searchAnywhereInstalled === '1') return;
 
     input.dataset.searchAnywhereInstalled = '1';
+    syncSearchVisibility();
 
     input.addEventListener('input', event => {
       event.stopImmediatePropagation();
@@ -193,8 +224,21 @@
     }, true);
 
     input.addEventListener('focus', () => {
-      if (input.value.trim()) search(input, panel, input.value);
+      if (!HIDDEN_ROUTES.has(currentRoute()) && input.value.trim()) {
+        search(input, panel, input.value);
+      }
     });
+
+    // The app changes the active nav item's class when navigating. Observe it
+    // so the search bar follows the current route without touching app.js.
+    const nav = document.getElementById('sidebarScroll');
+    if (nav) {
+      new MutationObserver(syncSearchVisibility).observe(nav, {
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['class']
+      });
+    }
 
     console.log('EcE Hub global search dropdown enabled on all routes.');
   }
