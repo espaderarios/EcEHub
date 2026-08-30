@@ -2017,49 +2017,12 @@ function builtinStudyView() {
     </div>
   `;
 }
-
 function flashcardsView() {
-if (!window.studyState) {
-    const sets = communityFlashcardSets;
-
-    if (communityFlashcardsLoading) {
-      return (
-        pageTitle(
-          'Flashcards',
-          'Loading community study sets...'
-        ) +
-
-        `<div class="card empty">
-          Loading flashcard sets...
-        </div>`
-      );
-    }
-
-    if (communityFlashcardsError) {
-      return (
-        pageTitle(
-          'Flashcards',
-          'Choose a study set to begin.'
-        ) +
-
-        `<div class="card empty">
-          <strong>Unable to load flashcards.</strong>
-          <p>${esc(communityFlashcardsError)}</p>
-
-          <button
-            type="button"
-            class="btn primary"
-            data-action="reload-community-flashcards">
-            Retry
-          </button>
-        </div>`
-      );
-    }
-
+  if (!window.studyState) {
     return (
       pageTitle(
         'Flashcards',
-        'Choose a study set to begin.'
+        'Create and manage your flashcard study sets.'
       ) +
 
       `<div class="flashcards-actions">
@@ -2073,83 +2036,25 @@ if (!window.studyState) {
 
       </div>` +
 
-      `<div class="grid set-grid">
+      `<div class="card empty">
 
-        ${
-          sets.length
-            ? sets.map(s => `
-              <div class="card set-card">
+        <h3>Your flashcard sets are organized in Classes.</h3>
 
-                <h3>
-                  ${esc(
-                    s.title ||
-                    'Untitled Study Set'
-                  )}
-                </h3>
+        <p>
+          Open a class to view its private and community flashcard sets.
+        </p>
 
-                <p>
-                  ${esc(s.subject || '')}
-                </p>
-
-                ${
-                  s.description
-                    ? `<p class="set-description">
-                        ${esc(s.description)}
-                       </p>`
-                    : ''
-                }
-
-                <div class="set-meta">
-                  ${Number(s.cardCount || 0)} cards
-                </div>
-
-                <button
-                  type="button"
-                  class="btn primary"
-                  style="margin-top:16px"
-                  data-action="study-community-set"
-                  data-id="${esc(s.id)}">
-                  Start studying
-                </button>
-
-                <div class="set-card-actions">
-
-                  <button
-                    type="button"
-                    class="btn"
-                    data-action="edit-community-set"
-                    data-id="${esc(s.id)}">
-                    ✏️ Edit
-                  </button>
-
-                  <button
-                    type="button"
-                    class="btn danger"
-                    data-action="delete-community-set"
-                    data-id="${esc(s.id)}">
-                    🗑️ Delete
-                  </button>
-
-                </div>
-
-              </div>
-            `).join('')
-            : `
-              <div class="card empty">
-                <h3>No community flashcard sets yet.</h3>
-
-                <p>
-                  Create your first study set using the AI
-                  Flashcard Maker.
-                </p>
-              </div>
-            `
-        }
+        <button
+          type="button"
+          class="btn"
+          data-action="navigate"
+          data-route="classes">
+          Open Classes
+        </button>
 
       </div>`
     );
   }
-
 
   const s =
     data.sets.find(
@@ -2157,7 +2062,6 @@ if (!window.studyState) {
     );
 
   if (!s || !s.cards.length) {
-
     window.studyState = null;
 
     return (
