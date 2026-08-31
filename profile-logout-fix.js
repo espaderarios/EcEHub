@@ -1,25 +1,51 @@
 /*
- * EcE Hub Profile Logout
+ * EcE Hub — Profile Logout
  *
- * Adds a real "Log Out" action to the Profile > Account section.
- * This intentionally does NOT call the Google unlink endpoint.
- * It only clears the frontend bearer session and reloads the app so the
- * current community account is no longer restored.
+ * Logout is intentionally separate from Google unlinking.
+ * It clears every frontend session key used by the app, clears the
+ * in-memory community account, and reloads into a clean session.
+ * It never calls the Google unlink endpoint.
  */
 (function installProfileLogout() {
-  const SESSION_KEY = 'ecehub_session_token';
+  'use strict';
+
+  const SESSION_KEYS = [
+    'ecehub_session_token',
+    'ecehub_community_session'
+  ];
   const BUTTON_SELECTOR = '[data-action="profile-logout"]';
+
+  function clearLocalSession() {
+    for (const key of SESSION_KEYS) {
+      try {
+        localStorage.removeItem(key);
+      } catch (error) {
+        console.warn(`Could not clear ${key}.`, error);
+      }
+    }
+
+    try {
+      sessionStorage.removeItem('ecehub_session_token');
+      sessionStorage.removeItem('ecehub_community_session');
+    } catch (error) {
+      console.warn('Could not clear sessionStorage auth state.', error);
+    }
+
+    try {
+      window.communityUser = null;
+      window.communityReady = false;
+    } catch {}
+  }
 
   function addLogoutButton() {
     const content = document.getElementById('content');
-    if (!content) return;
+    if (!content || content.querySelector(BUTTON_SELECTOR)) return;
 
     const accountButton =
       content.querySelector('[data-action="unlink-google"]') ||
       content.querySelector('[data-action="link-google"]');
 
     if (!accountButton) return;
-    if (content.querySelector(BUTTON_SELECTOR)) return;
 
     const button = document.createElement('button');
     button.type = 'button';
@@ -31,23 +57,20 @@
     accountButton.insertAdjacentElement('afterend', button);
   }
 
-  async function logout() {
-    try {
-      localStorage.removeItem(SESSION_KEY);
-    } catch (error) {
-      console.warn('EcE Hub logout could not clear the session token.', error);
-    }
+  function logout() {
+    clearLocalSession();
 
-    // Do not touch Google linking state or call /api/auth/google/unlink.
-    window.location.reload();
+    // Do NOT call /api/auth/google/unlink. Logging out leaves Google linked.
+    // A clean URL also prevents the old profile view from being restored.
+    window.location.replace(window.location.origin + window.location.pathname);
   }
 
-  document.addEventListener('click', function (event) {
+  document.addEventListener('click', event => {
     const button = event.target.closest(BUTTON_SELECTOR);
     if (!button) return;
 
     event.preventDefault();
-    event.stopPropagation();
+    event.stopImmediatePropagation();
     logout();
   }, true);
 
