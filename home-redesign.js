@@ -1,11 +1,19 @@
 /* EcE Hub Home — redesigned dashboard layer */
 (function installHomeRedesign() {
+  function getGreeting() {
+    const hour = new Date().getHours();
+    return hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  }
+
+  function updateHomeGreeting() {
+    const greetingEl = document.querySelector('[data-home-greeting]');
+    if (greetingEl) greetingEl.textContent = getGreeting();
+  }
+
   function renderHome() {
     const cards = data.sets.reduce((n, s) => n + (Array.isArray(s.cards) ? s.cards.length : 0), 0);
     const latestSet = data.sets[0] || null;
     const firstName = String(data.profile?.name || 'Student').trim().split(/\s+/)[0] || 'Student';
-    const hour = new Date().getHours();
-    const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
     const goal = typeof getStudyGoalData === 'function' ? getStudyGoalData() : { completed: 0 };
 
     const activity = data.activity?.length
@@ -25,7 +33,7 @@
       <section class="home-hero">
         <div class="home-hero-copy">
           <span class="home-eyebrow">EcE HUB · ACADEMIC WORKSPACE</span>
-          <h1>${greeting}, ${esc(firstName)} <span>👋</span></h1>
+          <h1><span data-home-greeting>${getGreeting()}</span>, ${esc(firstName)} <span>👋</span></h1>
           <p>${esc(data.profile?.course || 'Your academic workspace')} · Everything you need to study, practice, and keep moving.</p>
         </div>
         <div class="home-hero-meta">
@@ -76,7 +84,10 @@
     `;
   }
 
-  /* Replace the original Home renderer while keeping every existing helper,
-     data model, route, event handler, and Community Flashcards integration. */
   window.homeView = renderHome;
+
+  // Keep the greeting correct even if the user leaves EcE Hub open across noon or 6 PM.
+  setInterval(() => {
+    if (typeof currentView === 'string' && currentView === 'home') updateHomeGreeting();
+  }, 60000);
 })();
