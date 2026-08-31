@@ -885,6 +885,8 @@ function render() {
 
     'explore-circuits': () =>
       window.ExploreGames.circuitChallengeView(),
+    'explore-crossword': () =>
+      window.ExploreGames.electronicsCrosswordView(),
 
     quizzes: quizzesView,
     tools: toolsView,
@@ -1945,32 +1947,40 @@ function exploreView() {
 
 
           <!-- Components -->
-          <article class="explore-game-card explore-game-disabled">
+          <!-- Electronics Crossword -->
+          <article class="explore-game-card">
 
             <div class="explore-card-icon">
-              🔧
+              🧩
             </div>
 
             <div class="explore-card-body">
 
               <span class="explore-card-category">
-                ELECTRONIC COMPONENTS
+                ELECTRONICS
               </span>
 
               <h3>
-                Component Match
+                Electronics Crossword
               </h3>
 
               <p>
-                Identify electronic components
-                and learn what they do.
+                Test your knowledge of electronic components,
+                circuits, measurements, and technical terms.
               </p>
 
               <div class="explore-card-footer">
 
                 <span>
-                  Coming soon
+                  Technical terminology
                 </span>
+
+                <button
+                  type="button"
+                  class="btn primary"
+                  data-action="open-electronics-crossword">
+                  Play
+                </button>
 
               </div>
 
@@ -5225,6 +5235,36 @@ function action(a, id, index, el) {
 
    if (a === 'open-circuit-challenge') {
     window.ExploreGames.startCircuitChallenge();
+    return;
+  }
+
+ if (a === 'open-electronics-crossword') {
+    window.ExploreGames.startElectronicsCrossword();
+    return;
+  }
+
+  if (a === 'crossword-submit') {
+    window.ExploreGames.submitElectronicsCrossword();
+    return;
+  }
+
+  if (a === 'crossword-reveal') {
+    window.ExploreGames.revealElectronicsCrossword();
+    return;
+  }
+
+  if (a === 'crossword-next') {
+    window.ExploreGames.nextElectronicsCrossword();
+    return;
+  }
+
+  if (a === 'restart-electronics-crossword') {
+    window.ExploreGames.restartElectronicsCrossword();
+    return;
+  }
+
+  if (a === 'exit-electronics-crossword') {
+    window.ExploreGames.exitElectronicsCrossword();
     return;
   }
 

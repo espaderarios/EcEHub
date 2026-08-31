@@ -1448,25 +1448,26 @@ function gradeCircuitQuestion(
    * Everything else remains private to this module.
    */
 
-  window.ExploreGames = {
+window.ExploreGames =
+  window.ExploreGames || {};
 
-    circuitChallengeView,
+Object.assign(window.ExploreGames, {
 
-    startCircuitChallenge,
+  circuitChallengeView,
 
-    submitCircuitAnswer,
+  startCircuitChallenge,
 
-    showCircuitSolution,
+  submitCircuitAnswer,
 
-    nextCircuitQuestion,
+  showCircuitSolution,
 
-    restartCircuitChallenge,
+  nextCircuitQuestion,
 
-    exitCircuitChallenge,
+  restartCircuitChallenge,
 
-    getCircuitGameState
+  exitCircuitChallenge
 
-  };
+});
 
 
 })();
