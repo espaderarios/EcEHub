@@ -128,6 +128,7 @@
       loading = false;
       merge(backing);
       installLockedCellGuard();
+      installLevel2Launcher();
 
       console.info('EcE Hub Electronics Crossword Level 1 + Level 2 runtimes loaded.');
       flushPending();
@@ -135,6 +136,37 @@
       loading = false;
       console.error('EcE Hub could not load a crossword runtime.', error);
     }
+  }
+
+  function installLevel2Launcher() {
+    if (window.__eceCrosswordLevel2LauncherInstalled) return;
+    window.__eceCrosswordLevel2LauncherInstalled = true;
+
+    const mount = () => {
+      const tools = document.querySelector('.electronics-crossword-board-tools');
+      if (!tools || tools.querySelector('[data-ece-crossword-level2]')) return;
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'electronics-crossword-icon-btn';
+      button.dataset.eceCrosswordLevel2 = 'true';
+      button.textContent = 'Level 2';
+      button.title = 'Open Electronics Crossword Level 2';
+
+      button.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (typeof window.ExploreGames?.startElectronicsCrosswordLevel2 === 'function') {
+          window.ExploreGames.startElectronicsCrosswordLevel2();
+        }
+      });
+
+      tools.insertBefore(button, tools.lastElementChild || null);
+    };
+
+    const observer = new MutationObserver(mount);
+    observer.observe(document.body, { childList: true, subtree: true });
+    mount();
   }
 
   function installLockedCellGuard() {
