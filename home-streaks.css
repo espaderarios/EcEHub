@@ -1,0 +1,57 @@
+/* Calendar labels for the Home study streak */
+.home-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.home-week > span {
+  min-width: 0;
+  min-height: 48px;
+  padding: 6px 3px;
+  border: 1px solid var(--border, rgba(255,255,255,.12));
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  opacity: .55;
+  font-size: 11px;
+  transition: .18s ease;
+}
+
+.home-week > span b {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.home-week > span small {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.home-week > span.is-active {
+  opacity: 1;
+  border-color: rgba(124, 92, 255, .7);
+  background: rgba(124, 92, 255, .16);
+}
+
+.home-week > span.is-today {
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.18);
+}
+
+.home-week > span.is-today b::after {
+  content: ' · today';
+  text-transform: none;
+  font-weight: 600;
+  opacity: .8;
+}
+
+@media (max-width: 560px) {
+  .home-week { gap: 4px; }
+  .home-week > span { min-height: 44px; padding: 5px 2px; }
+  .home-week > span.is-today b::after { content: ''; }
+}
