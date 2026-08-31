@@ -1,9 +1,10 @@
 /* ============================================================
-   EcE Hub — Electronics Crossword Input UX Fix
+   EcE Hub — Electronics Crossword UX + responsive board fix
 
-   The crossword engine owns the answers/validation. This layer only
-   makes keyboard focus respect cells that have already been locked by
-   a correctly solved word (including shared intersections).
+   Keeps locked-cell keyboard behavior intact and prevents the
+   crossword board from being clipped/left vertically scrolled on
+   smaller screens. The board is allowed to grow with its full grid;
+   the page itself handles scrolling when the viewport is too short.
    ============================================================ */
 (function () {
   'use strict';
@@ -12,8 +13,70 @@
   let redirecting = false;
   let observerTimer = 0;
 
+  function installCrosswordLayoutFix() {
+    if (document.getElementById('ece-crossword-layout-fix')) return;
+
+    const style = document.createElement('style');
+    style.id = 'ece-crossword-layout-fix';
+    style.textContent = `
+      /* Never crop the crossword itself. The page may scroll, but the
+         puzzle grid must always be completely rendered. */
+      .electronics-crossword-board-wrapper {
+        min-width: 0 !important;
+        min-height: 0 !important;
+        overflow: visible !important;
+      }
+
+      .electronics-crossword-board {
+        width: fit-content !important;
+        max-width: 100% !important;
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+        align-self: flex-start;
+        contain: layout paint;
+      }
+
+      /* The 13×13-style grids need to shrink horizontally on smaller
+         screens instead of creating a clipped internal viewport. */
+      @media (max-width: 900px) {
+        .electronics-crossword-board {
+          --cw-cell-size: clamp(24px, min(6vw, 5vh), 40px) !important;
+          --cw-gap: 1px !important;
+        }
+      }
+
+      @media (max-width: 600px) {
+        .electronics-crossword-board {
+          --cw-cell-size: clamp(22px, 6.5vw, 32px) !important;
+        }
+      }
+
+      /* Keep the game card from imposing a hidden/cropped height. */
+      .electronics-crossword-page,
+      .electronics-crossword-game,
+      .electronics-crossword-board-wrapper {
+        overflow: visible !important;
+      }
+
+      /* If the board was previously scrolled by an older layout, don't
+         let that stale scroll position hide the first rows. */
+      .electronics-crossword-board {
+        scroll-behavior: auto !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
   function getBoard() {
     return document.getElementById('electronicsCrosswordBoard');
+  }
+
+  function resetBoardScroll() {
+    const board = getBoard();
+    if (!board) return;
+    if (board.scrollTop !== 0) board.scrollTop = 0;
+    if (board.scrollLeft !== 0) board.scrollLeft = 0;
   }
 
   function getSelectedCell() {
@@ -38,20 +101,14 @@
     let r = row;
     let c = col;
 
-    // Walk only through the currently selected crossword word. A non-cell
-    // block ends the word, so we never jump across unrelated grid areas.
     for (let i = 0; i < 30; i += 1) {
       if (direction === 'down') r += step;
       else c += step;
 
       const next = cellAt(r, c);
       if (!next) return null;
-      if (next.classList.contains('locked')) {
-        continue;
-      }
-      if (!next.classList.contains('word-selected')) {
-        return null;
-      }
+      if (next.classList.contains('locked')) continue;
+      if (!next.classList.contains('word-selected')) return null;
       return next;
     }
 
@@ -69,8 +126,6 @@
     try {
       next.click();
     } finally {
-      // Let the crossword's own click handler finish before accepting the
-      // next keyboard event.
       setTimeout(() => { redirecting = false; }, 0);
     }
     return true;
@@ -85,9 +140,6 @@
     const isEditing = isTyping || event.key === 'Backspace' || event.key === 'Delete';
     if (!isEditing) return;
 
-    // Existing crossword validation remains untouched. If focus is sitting
-    // on an intersection that became locked by another solved word, move to
-    // the next editable square before the original keyboard handler runs.
     if (getSelectedCell()?.classList.contains('locked')) {
       const moved = redirectLockedSelection();
       if (moved) return;
@@ -98,6 +150,7 @@
     if (!getBoard()) return;
     window.clearTimeout(observerTimer);
     observerTimer = window.setTimeout(() => {
+      resetBoardScroll();
       redirectLockedSelection();
     }, 0);
   }
@@ -106,8 +159,9 @@
     if (document.documentElement.dataset.eceCrosswordInputFix === '1') return;
     document.documentElement.dataset.eceCrosswordInputFix = '1';
 
-    // Capture phase runs before electronics-crossword.js's document-level
-    // keyboard handler, allowing us to move focus without duplicating input.
+    installCrosswordLayoutFix();
+    resetBoardScroll();
+
     document.addEventListener('keydown', handleKeydown, true);
 
     const observer = new MutationObserver(keepSelectionEditable);
@@ -117,7 +171,11 @@
       window.setTimeout(keepSelectionEditable, 0);
     }, true);
 
-    console.log('EcE Hub crossword locked-cell input fix installed.');
+    window.addEventListener('resize', () => {
+      resetBoardScroll();
+    }, { passive: true });
+
+    console.log('EcE Hub crossword input + full-grid layout fix installed.');
   }
 
   if (document.readyState === 'loading') {
