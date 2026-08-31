@@ -2,6 +2,7 @@
 (function installHomeStreaks() {
   const STORAGE_KEY = 'eceHubStudyDatesV1';
   const MAX_DAYS = 180;
+  let observer = null;
 
   function localDateKey(date = new Date()) {
     const y = date.getFullYear();
@@ -28,7 +29,8 @@
     const dates = readDates();
     dates.add(localDateKey());
     writeDates(dates);
-    render();
+    // Let the existing SPA click/navigation handlers finish first.
+    setTimeout(render, 0);
   }
 
   function daysForLastSeven() {
@@ -50,6 +52,19 @@
     return result;
   }
 
+  function buildWeekMarkup(days) {
+    return days.map(d => {
+      const label = d.date.toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2);
+      const dayNumber = d.date.getDate();
+      const title = d.date.toLocaleDateString(undefined, {
+        weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+      });
+      const classes = [d.active ? 'is-active' : '', d.isToday ? 'is-today' : '']
+        .filter(Boolean).join(' ');
+      return `<span class="${classes}" title="${title}"><b>${label}</b><small>${dayNumber}</small></span>`;
+    }).join('');
+  }
+
   function render() {
     const week = document.querySelector('.home-week');
     if (!week) return;
@@ -57,26 +72,28 @@
     const days = daysForLastSeven();
     const completed = days.filter(d => d.active).length;
     const percent = Math.min(100, Math.round((completed / 7) * 100));
+    const markup = buildWeekMarkup(days);
+
+    // Critical: only touch the week DOM when its contents actually changed.
+    // This prevents the MutationObserver from observing its own update forever.
+    if (week.innerHTML !== markup) week.innerHTML = markup;
 
     const number = document.querySelector('.home-streak-number');
-    if (number) number.innerHTML = `${completed}<span>/ 7 days</span>`;
+    if (number) {
+      const value = `${completed}`;
+      if (number.firstChild?.nodeValue !== value) number.innerHTML = `${value}<span>/ 7 days</span>`;
+    }
 
     const percentEl = document.querySelector('.home-percent');
-    if (percentEl) percentEl.textContent = `${percent}%`;
+    if (percentEl && percentEl.textContent !== `${percent}%`) percentEl.textContent = `${percent}%`;
 
     const progress = document.querySelector('.goal-progress i');
-    if (progress) progress.style.width = `${percent}%`;
+    if (progress && progress.style.width !== `${percent}%`) progress.style.width = `${percent}%`;
 
-    week.innerHTML = days.map(d => {
-      const label = d.date.toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2);
-      const dayNumber = d.date.getDate();
-      const classes = [d.active ? 'is-active' : '', d.isToday ? 'is-today' : ''].filter(Boolean).join(' ');
-      return `<span class="${classes}" title="${d.date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}"><b>${label}</b><small>${dayNumber}</small></span>`;
-    }).join('');
-
-    // Keep the Home hero's weekly study-day count consistent with the calendar.
     const heroStats = document.querySelectorAll('.home-hero-stat strong');
-    if (heroStats.length) heroStats[0].textContent = `${completed}/7`;
+    if (heroStats.length && heroStats[0].textContent !== `${completed}/7`) {
+      heroStats[0].textContent = `${completed}/7`;
+    }
   }
 
   // Study actions are the source of truth: opening a study session marks that
@@ -88,8 +105,9 @@
     if (action.includes('study')) markTodayAsStudied();
   }, true);
 
-  // Render whenever the SPA changes the Home DOM.
-  const observer = new MutationObserver(() => {
+  // The SPA replaces Home's DOM during navigation. Observe those replacements,
+  // but render only when the calculated calendar markup differs from the DOM.
+  observer = new MutationObserver(() => {
     if (document.querySelector('.home-week')) render();
   });
   observer.observe(document.body, { childList: true, subtree: true });
