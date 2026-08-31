@@ -1,15 +1,16 @@
 /* EcE Hub — class/set relationship fix
  *
- * A flashcard set can live in the private Workspace while still belonging to
- * a class. Classes should therefore discover sets by classId when available,
- * and by a normalized subject/class name as a backwards-compatible fallback.
- * This bridge intentionally leaves the existing Classes renderer untouched.
+ * Private study sets are stored in localStorage. This bridge makes Classes
+ * discover the same sets as the Flashcards Workspace without duplicating or
+ * moving them. A set belongs to a class when its classId matches; subject/class
+ * name matching remains the backwards-compatible fallback.
  */
 (() => {
   'use strict';
 
   const LOCAL_KEY = 'eceHubDataV3';
   let lastSignature = '';
+  let scheduled = false;
 
   const text = value => String(value ?? '').trim();
 
@@ -44,9 +45,22 @@
   function currentClass() {
     const local = readLocal();
     const classes = Array.isArray(local.classes) ? local.classes : [];
-    const heading = normalize(document.querySelector('#content .page-title h1')?.textContent);
+    if (!classes.length) return null;
+
+    /* The Classes detail heading is rendered by pageTitle(). Do not depend on
+       one particular wrapper class because the UI has changed over time. */
+    const heading = normalize(
+      document.querySelector('#content .page-title h1')?.textContent
+      || document.querySelector('#content h1')?.textContent
+    );
     if (!heading) return null;
+
     return classes.find(cls => normalize(cls.name) === heading) || null;
+  }
+
+  function isClassDetail() {
+    return !!document.querySelector('.nav-item[data-route="classes"].active')
+      && !!currentClass();
   }
 
   function setsForClass(cls) {
@@ -66,7 +80,7 @@
     return `<div class="card set-card subject-set-card" data-action="open-set" data-id="${esc(set.id)}" style="cursor:pointer">
       <div class="class-set-card-top">
         <span class="class-set-card-icon">▧</span>
-        <span class="class-set-card-badge">Private</span>
+        <span class="class-set-card-badge">Study Set</span>
       </div>
       <h3>${esc(set.title || 'Untitled set')}</h3>
       <p>${esc(set.subject || '')}</p>
@@ -82,16 +96,19 @@
 
   function updateClassDetail() {
     const active = document.querySelector('.nav-item[data-route="classes"].active');
-    if (!active) return;
+    if (!active) {
+      lastSignature = '';
+      return;
+    }
 
     const cls = currentClass();
     if (!cls) return;
 
     const sets = setsForClass(cls);
     const cards = sets.reduce((sum, set) => sum + (Array.isArray(set.cards) ? set.cards.length : 0), 0);
-    const signature = `${cls.id}:${sets.map(set => `${set.id}:${set.title}:${set.subject}:${set.cards?.length || 0}`).join('|')}`;
+    const signature = `${cls.id}:${sets.map(set => `${set.id}:${set.title}:${set.subject}:${set.classId || ''}:${set.cards?.length || 0}`).join('|')}`;
 
-    /* Root Classes page: keep the subject-card counters accurate too. */
+    /* Root Classes page: keep the subject-card counters accurate. */
     document.querySelectorAll('.subject-card').forEach(card => {
       const title = normalize(card.querySelector('h3')?.textContent);
       if (title !== normalize(cls.name)) return;
@@ -99,9 +116,7 @@
       if (meta) meta.textContent = `${sets.length} set${sets.length === 1 ? '' : 's'} · ${cards} cards`;
     });
 
-    /* Only alter an opened class detail. */
-    if (!document.querySelector('.set-grid') && !document.querySelector('#content .card.empty')) return;
-
+    if (!isClassDetail()) return;
     if (signature === lastSignature) return;
     lastSignature = signature;
 
@@ -110,9 +125,9 @@
       .find(el => /No sets for this subject yet/i.test(el.textContent || ''));
 
     if (!sets.length) {
-      if (oldGrid) oldGrid.innerHTML = '';
+      if (oldGrid) oldGrid.remove();
       if (empty) {
-        empty.textContent = `No sets for this subject yet. Create one and set its subject to “${text(cls.name)}”.`;
+        empty.textContent = `No study sets for ${text(cls.name)} yet. Create a set here or assign an existing set to this class.`;
       }
       return;
     }
@@ -121,17 +136,26 @@
     grid.className = 'grid set-grid';
     grid.innerHTML = sets.map(setCard).join('');
 
-    if (empty) empty.replaceWith(grid);
-    else if (!oldGrid) {
+    if (empty) {
+      empty.replaceWith(grid);
+    } else if (!oldGrid) {
       const communitySection = document.querySelector('.class-community-flashcards');
       const anchor = communitySection || document.querySelector('#content .drill-hero');
       if (anchor?.parentNode) anchor.parentNode.insertBefore(grid, anchor.nextSibling);
+      else document.querySelector('#content')?.appendChild(grid);
     }
 
     const subtitle = document.querySelector('#content .page-title p');
-    if (subtitle && /set/i.test(subtitle.textContent || '')) {
-      subtitle.textContent = `${sets.length} set${sets.length === 1 ? '' : 's'} · ${cards} cards`;
-    }
+    if (subtitle) subtitle.textContent = `${sets.length} set${sets.length === 1 ? '' : 's'} · ${cards} cards`;
+  }
+
+  function scheduleUpdate() {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(() => {
+      scheduled = false;
+      updateClassDetail();
+    });
   }
 
   function installStyles() {
@@ -141,7 +165,8 @@
     style.textContent = `
       .class-set-card-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
       .class-set-card-icon{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:rgba(99,72,255,.12);color:var(--purple,#6348ff);font-weight:800}
-      .class-set-card-badge{font-size:10px;font-weight:750;border-radius:999px;padding:5px 8px;background:rgba(127,127,127,.1);color:var(--muted)}
+      .class-set-card-badge{font-size:10px;font-weight:750;border-radius:999px;padding:5px 8px;background:rgba(99,72,255,.1);color:var(--purple,#8b7cff)}
+      #content .set-grid{margin-top:20px}
     `;
     document.head.appendChild(style);
   }
@@ -151,17 +176,27 @@
     const content = document.getElementById('content');
     if (!content) return;
 
-    const observer = new MutationObserver(() => {
-      if (!document.querySelector('.nav-item[data-route="classes"].active')) {
+    const observer = new MutationObserver(scheduleUpdate);
+    observer.observe(content, { childList: true, subtree: true });
+
+    window.addEventListener('storage', event => {
+      if (event.key === LOCAL_KEY) {
         lastSignature = '';
-        return;
+        scheduleUpdate();
       }
-      updateClassDetail();
     });
 
-    observer.observe(content, { childList: true, subtree: true });
-    setTimeout(updateClassDetail, 100);
-    setInterval(updateClassDetail, 1000);
+    document.addEventListener('ecehub:flashcard-data-changed', () => {
+      lastSignature = '';
+      scheduleUpdate();
+    });
+    document.addEventListener('ecehub:community-flashcard-updated', () => {
+      lastSignature = '';
+      scheduleUpdate();
+    });
+
+    setTimeout(updateClassDetail, 150);
+    setInterval(updateClassDetail, 1200);
     console.log('EcE Hub class/set relationship fix installed.');
   }
 
