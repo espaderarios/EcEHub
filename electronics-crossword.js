@@ -27,7 +27,7 @@
   const CHALLENGE = {
     title: 'Electronics Technicalities',
     subtitle: 'Test your knowledge of electronics technical terminology.',
-    instruction: 'Fill in the crossword using the clues. Click a square to select a word, then type the letters. Click an intersection again or press Space to switch between Across and Down.'
+    instruction: 'Fill in each word using the clues. When you finish a word, EcE Hub checks it automatically. Correct words lock in place and the cursor moves to the next word.'
   };
 
   let crosswordGameState = null;
@@ -37,6 +37,7 @@
     .electronics-crossword-page {
       --cw-accent: #5b4be8;
       --cw-accent-dark: #4637d5;
+      --cw-blue: #18aeea;
       --cw-ink: #12213b;
       --cw-muted: #64748b;
       --cw-border: #dbe3ef;
@@ -61,6 +62,7 @@
     }
 
     .electronics-crossword-header-copy { min-width: 0; }
+
     .electronics-crossword-eyebrow {
       display: block;
       margin: 1px 0 7px;
@@ -111,6 +113,7 @@
     }
 
     .electronics-crossword-board-heading strong { font-size: 17px; }
+
     .electronics-crossword-board-tools {
       display: flex;
       align-items: center;
@@ -139,10 +142,13 @@
       font-size: 13px;
       font-weight: 750;
       cursor: pointer;
+      transition: transform .12s ease, background .15s ease, border-color .15s ease;
     }
 
     .electronics-crossword-icon-btn:hover,
     .electronics-crossword-page .btn:hover { background: #f7f8fc; }
+    .electronics-crossword-icon-btn:active,
+    .electronics-crossword-page .btn:active { transform: translateY(1px); }
 
     .electronics-crossword-page .btn.primary {
       border-color: var(--cw-accent);
@@ -152,7 +158,6 @@
 
     .electronics-crossword-page .btn.primary:hover { background: var(--cw-accent-dark); }
 
-    /* The shell owns the available size. The grid is then calculated to fit it. */
     .electronics-crossword-board-shell {
       width: 100%;
       aspect-ratio: 15 / 12;
@@ -208,20 +213,52 @@
       font-size: calc(var(--crossword-cell-size) * .42);
       font-weight: 850;
       cursor: pointer;
+      transition: background .12s ease, box-shadow .12s ease, color .12s ease;
     }
 
     .electronics-crossword-cell:hover { background: #f0f2ff; }
     .electronics-crossword-cell.word-selected { background: #eae8ff; }
+
     .electronics-crossword-cell.selected {
       z-index: 2;
       background: var(--cw-accent);
       color: #fff;
       box-shadow: inset 0 0 0 2px var(--cw-accent-dark);
     }
-    .electronics-crossword-cell.correct { background: #dcfce7; color: #166534; }
+
+    .electronics-crossword-cell.correct,
+    .electronics-crossword-cell.locked {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .electronics-crossword-cell.locked::after {
+      content: '✓';
+      position: absolute;
+      right: 2px;
+      bottom: 1px;
+      font-size: max(7px, calc(var(--crossword-cell-size) * .18));
+      font-weight: 900;
+      color: #22a05a;
+      pointer-events: none;
+    }
+
+    .electronics-crossword-cell.selected.locked {
+      background: #b9edcf;
+      color: #14532d;
+      box-shadow: inset 0 0 0 2px #22a05a;
+    }
+
     .electronics-crossword-cell.incorrect { background: #fee2e2; color: #b91c1c; }
-    .electronics-crossword-cell.selected.correct,
-    .electronics-crossword-cell.selected.incorrect { color: #fff; }
+    .electronics-crossword-cell.word-error { animation: crossword-wiggle .42s ease; }
+
+    @keyframes crossword-wiggle {
+      0%,100% { transform: translateX(0); }
+      20% { transform: translateX(-4px); }
+      40% { transform: translateX(4px); }
+      60% { transform: translateX(-3px); }
+      80% { transform: translateX(3px); }
+    }
 
     .electronics-crossword-number {
       position: absolute;
@@ -235,6 +272,7 @@
     }
 
     .electronics-crossword-cell.selected .electronics-crossword-number { color: #fff; }
+    .electronics-crossword-cell.locked .electronics-crossword-number { color: #32805a; }
     .electronics-crossword-letter { margin-top: 3px; pointer-events: none; }
 
     .electronics-crossword-status {
@@ -248,18 +286,13 @@
       border: 1px solid #e2e8f0;
       border-radius: 12px;
       background: #f8fafc;
+      transition: background .2s ease, border-color .2s ease;
     }
 
     .electronics-crossword-status strong { font-size: 14px; }
-    .electronics-crossword-status span {
-      color: var(--cw-muted);
-      font-size: 12px;
-      text-align: right;
-    }
-    .electronics-crossword-status.complete {
-      border-color: #bbf7d0;
-      background: #f0fdf4;
-    }
+    .electronics-crossword-status span { color: var(--cw-muted); font-size: 12px; text-align: right; }
+    .electronics-crossword-status.complete { border-color: #bbf7d0; background: #f0fdf4; }
+    .electronics-crossword-status.error { border-color: #fecaca; background: #fff7f7; }
 
     .electronics-crossword-actions {
       display: flex;
@@ -296,6 +329,7 @@
     }
 
     .electronics-crossword-howto-title { display: flex; align-items: center; gap: 10px; }
+
     .electronics-crossword-howto-icon {
       width: 38px;
       height: 38px;
@@ -306,20 +340,20 @@
       background: #eeecff;
       font-size: 19px;
     }
-    .electronics-crossword-howto-chevron { color: #64748b; }
+
+    .electronics-crossword-howto-chevron { color: #64748b; transition: transform .15s ease; }
+    .electronics-crossword-howto.open .electronics-crossword-howto-chevron { transform: rotate(180deg); }
+
     .electronics-crossword-howto-body {
       display: none;
       margin-top: 14px;
       padding-top: 14px;
       border-top: 1px solid #edf1f7;
     }
+
     .electronics-crossword-howto.open .electronics-crossword-howto-body { display: block; }
     .electronics-crossword-howto-body p,
-    .electronics-crossword-howto-body li {
-      color: var(--cw-muted);
-      font-size: 13px;
-      line-height: 1.65;
-    }
+    .electronics-crossword-howto-body li { color: var(--cw-muted); font-size: 13px; line-height: 1.65; }
     .electronics-crossword-howto-body p { margin: 0; }
     .electronics-crossword-howto-body ul { margin: 10px 0 0; padding-left: 18px; }
 
@@ -338,7 +372,7 @@
 
     .electronics-crossword-clue-section h2 {
       margin: 0 0 9px;
-      color: #1da9e9;
+      color: var(--cw-blue);
       font-size: 16px;
       font-weight: 850;
       letter-spacing: .1em;
@@ -346,6 +380,7 @@
     }
 
     .electronics-crossword-clue-list { display: flex; flex-direction: column; gap: 3px; }
+
     .electronics-crossword-clue {
       width: 100%;
       display: grid;
@@ -361,14 +396,15 @@
       font: inherit;
       text-align: left;
     }
+
     .electronics-crossword-clue:hover { background: #f6f7fb; }
-    .electronics-crossword-clue.active {
-      background: #eeecff;
-      box-shadow: inset 3px 0 0 #22b7f2;
-    }
-    .electronics-crossword-clue-number { color: #18aeea; font-weight: 850; }
+    .electronics-crossword-clue.active { background: #eeecff; box-shadow: inset 3px 0 0 var(--cw-blue); }
+    .electronics-crossword-clue.completed { background: #effaf3; }
+    .electronics-crossword-clue.completed .electronics-crossword-clue-number { color: #16a05a; }
+    .electronics-crossword-clue-number { color: var(--cw-blue); font-weight: 850; }
     .electronics-crossword-clue-text { color: #64748b; font-size: 13px; line-height: 1.45; }
     .electronics-crossword-clue.active .electronics-crossword-clue-text { color: #4033a7; }
+    .electronics-crossword-clue.completed .electronics-crossword-clue-text { color: #397454; }
 
     .electronics-crossword-page:fullscreen {
       width: 100vw;
@@ -384,17 +420,20 @@
       height: calc(100vh - 112px);
       grid-template-columns: minmax(0,1fr) minmax(320px,380px);
     }
+
     .electronics-crossword-page:fullscreen .electronics-crossword-board-card {
       height: 100%;
       min-height: 0;
       display: flex;
       flex-direction: column;
     }
+
     .electronics-crossword-page:fullscreen .electronics-crossword-board-shell {
       flex: 1 1 auto;
       min-height: 0;
       aspect-ratio: auto;
     }
+
     .electronics-crossword-page:fullscreen .electronics-crossword-clues {
       height: 100%;
       max-height: none;
@@ -447,6 +486,7 @@
   }
 
   function cellKey(row, col) { return `${row}-${col}`; }
+  function entryKey(entry) { return `${entry.direction}:${entry.row}:${entry.col}:${normalizeAnswer(entry.answer)}`; }
 
   function getEntryCells(entry) {
     const answer = normalizeAnswer(entry.answer);
@@ -468,14 +508,10 @@
     entries.forEach(entry => {
       const answer = normalizeAnswer(entry.answer);
       getEntryCells(entry).forEach((position, index) => {
-        if (!isInside(position.row, position.col)) {
-          throw new Error(`Crossword entry ${answer} is outside the grid.`);
-        }
+        if (!isInside(position.row, position.col)) throw new Error(`Crossword entry ${answer} is outside the grid.`);
         const cell = board[position.row][position.col];
         const expected = answer[index];
-        if (cell.expected && cell.expected !== expected) {
-          throw new Error(`Crossword crossing mismatch at ${position.row},${position.col}.`);
-        }
+        if (cell.expected && cell.expected !== expected) throw new Error(`Crossword crossing mismatch at ${position.row},${position.col}.`);
         cell.active = true;
         cell.expected = expected;
         if (!cell.entries.includes(entry)) cell.entries.push(entry);
@@ -487,9 +523,7 @@
       const first = getEntryCells(entry)[0];
       const beforeRow = first.row + (entry.direction === 'down' ? -1 : 0);
       const beforeCol = first.col + (entry.direction === 'across' ? -1 : 0);
-      if (!isInside(beforeRow, beforeCol) || !board[beforeRow][beforeCol].active) {
-        starts.add(cellKey(first.row, first.col));
-      }
+      if (!isInside(beforeRow, beforeCol) || !board[beforeRow][beforeCol].active) starts.add(cellKey(first.row, first.col));
     });
 
     Array.from(starts)
@@ -508,19 +542,20 @@
       challenge: { ...CHALLENGE, entries },
       board,
       answers: {},
+      lockedEntries: new Set(),
       selected: { row: entries[0].row, col: entries[0].col },
       direction: entries[0].direction,
       answered: false,
       correct: 0,
-      total: board.flat().filter(cell => cell.active).length
+      total: board.flat().filter(cell => cell.active).length,
+      lastErrorEntry: null
     };
   }
 
   function findEntryAtCell(row, col, direction) {
     if (!crosswordGameState) return null;
     return crosswordGameState.challenge.entries.find(entry =>
-      entry.direction === direction &&
-      getEntryCells(entry).some(position => position.row === row && position.col === col)
+      entry.direction === direction && getEntryCells(entry).some(position => position.row === row && position.col === col)
     ) || null;
   }
 
@@ -528,6 +563,32 @@
     if (!crosswordGameState?.selected) return null;
     const { row, col } = crosswordGameState.selected;
     return findEntryAtCell(row, col, crosswordGameState.direction);
+  }
+
+  function isEntryLocked(entry) {
+    return !!entry && crosswordGameState?.lockedEntries?.has(entryKey(entry));
+  }
+
+  function isCellLockedForEntry(entry, row, col) {
+    if (!entry || !crosswordGameState) return false;
+    return isEntryLocked(entry) && getEntryCells(entry).some(position => position.row === row && position.col === col);
+  }
+
+  function getFirstEditableCell(entry) {
+    if (!entry || !crosswordGameState) return null;
+    return getEntryCells(entry).find(position => !isCellLockedForEntry(entry, position.row, position.col)) || null;
+  }
+
+  function getNextUnlockedEntry(entry) {
+    if (!crosswordGameState) return null;
+    const entries = crosswordGameState.challenge.entries;
+    const index = entry ? entries.indexOf(entry) : -1;
+
+    for (let offset = 1; offset <= entries.length; offset++) {
+      const candidate = entries[(index + offset + entries.length) % entries.length];
+      if (!isEntryLocked(candidate)) return candidate;
+    }
+    return null;
   }
 
   function selectCell(row, col) {
@@ -545,14 +606,32 @@
       crosswordGameState.direction = findEntryAtCell(row, col, 'across') ? 'across' : 'down';
     }
 
+    const entry = findEntryAtCell(row, col, crosswordGameState.direction);
+    if (entry && isEntryLocked(entry)) {
+      const opposite = crosswordGameState.direction === 'across' ? 'down' : 'across';
+      const other = findEntryAtCell(row, col, opposite);
+      if (other && !isEntryLocked(other)) crosswordGameState.direction = opposite;
+    }
+
     crosswordGameState.selected = { row, col };
+    crosswordGameState.lastErrorEntry = null;
     rerender();
   }
 
   function selectEntry(entry) {
     if (!entry || !crosswordGameState) return;
+
+    if (isEntryLocked(entry)) {
+      const next = getNextUnlockedEntry(entry);
+      if (next) return selectEntry(next);
+      return;
+    }
+
     crosswordGameState.direction = entry.direction;
-    crosswordGameState.selected = { row: entry.row, col: entry.col };
+    const firstEditable = getFirstEditableCell(entry);
+    const first = firstEditable || getEntryCells(entry)[0];
+    crosswordGameState.selected = { row: first.row, col: first.col };
+    crosswordGameState.lastErrorEntry = null;
     rerender();
   }
 
@@ -561,14 +640,94 @@
     if (!entry || !crosswordGameState?.selected) return;
 
     const cells = getEntryCells(entry);
-    const index = cells.findIndex(position =>
-      position.row === crosswordGameState.selected.row && position.col === crosswordGameState.selected.col
-    );
+    const index = cells.findIndex(position => position.row === crosswordGameState.selected.row && position.col === crosswordGameState.selected.col);
     if (index < 0) return;
 
-    const next = cells[Math.max(0, Math.min(cells.length - 1, index + step))];
-    crosswordGameState.selected = { row: next.row, col: next.col };
+    let nextIndex = index + step;
+    while (nextIndex >= 0 && nextIndex < cells.length) {
+      const next = cells[nextIndex];
+      if (!isCellLockedForEntry(entry, next.row, next.col)) {
+        crosswordGameState.selected = { row: next.row, col: next.col };
+        updateSelection();
+        return;
+      }
+      nextIndex += step >= 0 ? 1 : -1;
+    }
+
     updateSelection();
+  }
+
+  function moveToNextWord(entry) {
+    const next = getNextUnlockedEntry(entry);
+    if (!next) {
+      crosswordGameState.selected = null;
+      return;
+    }
+
+    crosswordGameState.direction = next.direction;
+    const first = getFirstEditableCell(next) || getEntryCells(next)[0];
+    crosswordGameState.selected = { row: first.row, col: first.col };
+  }
+
+  function wordIsComplete(entry) {
+    if (!entry || !crosswordGameState) return false;
+    return getEntryCells(entry).every(position => !!crosswordGameState.answers[cellKey(position.row, position.col)]);
+  }
+
+  function wordIsCorrect(entry) {
+    if (!entry || !crosswordGameState) return false;
+    const answer = normalizeAnswer(entry.answer);
+    return getEntryCells(entry).every((position, index) =>
+      (crosswordGameState.answers[cellKey(position.row, position.col)] || '') === answer[index]
+    );
+  }
+
+  function lockEntry(entry) {
+    if (!entry || !crosswordGameState) return;
+    crosswordGameState.lockedEntries.add(entryKey(entry));
+    crosswordGameState.lastErrorEntry = null;
+    crosswordGameState.answered = false;
+    updateCorrectCount();
+  }
+
+  function showWordError(entry) {
+    if (!entry || !crosswordGameState) return;
+    crosswordGameState.lastErrorEntry = entryKey(entry);
+    crosswordGameState.answered = false;
+    crosswordGameState.selected = getEntryCells(entry).find(position =>
+      crosswordGameState.answers[cellKey(position.row, position.col)] !== normalizeAnswer(entry.answer)[getEntryCells(entry).findIndex(p => p.row === position.row && p.col === position.col)]
+    ) || getEntryCells(entry)[0];
+
+    renderCrosswordBoard();
+    updateCrosswordStatus();
+
+    const number = getEntryNumber(entry);
+    const label = `${number} ${entry.direction === 'across' ? 'Across' : 'Down'}`;
+    if (typeof window.toast === 'function') window.toast(`❌ ${label} isn't correct yet. Try again.`);
+
+    setTimeout(() => {
+      document.querySelectorAll('.electronics-crossword-cell.word-error').forEach(cell => cell.classList.remove('word-error'));
+      crosswordGameState.lastErrorEntry = null;
+      renderCrosswordBoard();
+    }, 480);
+  }
+
+  function checkCompletedWord(entry) {
+    if (!entry || isEntryLocked(entry) || !wordIsComplete(entry)) return false;
+
+    if (wordIsCorrect(entry)) {
+      lockEntry(entry);
+      if (typeof window.toast === 'function') window.toast(`✓ ${getEntryNumber(entry)} ${entry.direction === 'across' ? 'Across' : 'Down'} correct!`);
+      moveToNextWord(entry);
+      renderCrosswordBoard();
+      renderCrosswordClues();
+      updateCrosswordStatus();
+      checkForAllWordsComplete();
+      return true;
+    }
+
+    showWordError(entry);
+    return false;
   }
 
   function enterLetter(letter) {
@@ -576,37 +735,77 @@
     const value = normalizeAnswer(letter).charAt(0);
     if (!value) return;
 
-    if (!crosswordGameState.selected) {
-      const first = crosswordGameState.challenge.entries[0];
-      crosswordGameState.selected = { row: first.row, col: first.col };
-      crosswordGameState.direction = first.direction;
+    let entry = getSelectedEntry();
+    if (!entry) {
+      const next = getNextUnlockedEntry(null);
+      if (!next) return;
+      selectEntry(next);
+      entry = getSelectedEntry();
+    }
+
+    if (isEntryLocked(entry)) {
+      moveToNextWord(entry);
+      renderCrosswordBoard();
+      renderCrosswordClues();
+      return;
+    }
+
+    const selected = crosswordGameState.selected;
+    if (!selected) return;
+
+    if (isCellLockedForEntry(entry, selected.row, selected.col)) {
+      moveWithinWord(1);
+      entry = getSelectedEntry();
+      if (!entry || !crosswordGameState.selected || isCellLockedForEntry(entry, crosswordGameState.selected.row, crosswordGameState.selected.col)) return;
     }
 
     const { row, col } = crosswordGameState.selected;
     crosswordGameState.answers[cellKey(row, col)] = value;
     crosswordGameState.answered = false;
-    renderCrosswordBoard();
+    crosswordGameState.lastErrorEntry = null;
+
+    if (wordIsComplete(entry)) {
+      checkCompletedWord(entry);
+      return;
+    }
+
     moveWithinWord(1);
+    renderCrosswordBoard();
+    renderCrosswordClues();
+    updateCrosswordStatus();
   }
 
   function deleteLetter() {
     if (!crosswordGameState?.selected) return;
+    const entry = getSelectedEntry();
+    if (!entry || isEntryLocked(entry)) return;
+
     const { row, col } = crosswordGameState.selected;
     const key = cellKey(row, col);
+
+    if (isCellLockedForEntry(entry, row, col)) {
+      moveWithinWord(-1);
+      return;
+    }
 
     if (crosswordGameState.answers[key]) {
       delete crosswordGameState.answers[key];
       crosswordGameState.answered = false;
       renderCrosswordBoard();
+      renderCrosswordClues();
+      updateCrosswordStatus();
       return;
     }
 
     moveWithinWord(-1);
-    if (!crosswordGameState.selected) return;
-    const previous = cellKey(crosswordGameState.selected.row, crosswordGameState.selected.col);
-    delete crosswordGameState.answers[previous];
+    const previous = crosswordGameState.selected;
+    if (previous && !isCellLockedForEntry(entry, previous.row, previous.col)) {
+      delete crosswordGameState.answers[cellKey(previous.row, previous.col)];
+    }
     crosswordGameState.answered = false;
     renderCrosswordBoard();
+    renderCrosswordClues();
+    updateCrosswordStatus();
   }
 
   function moveDirection(rowChange, colChange) {
@@ -632,9 +831,15 @@
     if (!crosswordGameState?.selected) return;
     const opposite = crosswordGameState.direction === 'across' ? 'down' : 'across';
     const { row, col } = crosswordGameState.selected;
-    if (findEntryAtCell(row, col, opposite)) {
+    const entry = findEntryAtCell(row, col, opposite);
+    if (entry && !isEntryLocked(entry)) {
       crosswordGameState.direction = opposite;
       updateSelection();
+      return;
+    }
+    if (entry) {
+      const current = getSelectedEntry();
+      if (current && !isEntryLocked(current)) return;
     }
   }
 
@@ -649,6 +854,12 @@
     if (event.key === 'ArrowLeft') { event.preventDefault(); moveDirection(0, -1); return; }
     if (event.key === 'ArrowDown') { event.preventDefault(); moveDirection(1, 0); return; }
     if (event.key === 'ArrowUp') { event.preventDefault(); moveDirection(-1, 0); }
+  }
+
+  function getEntryNumber(entry) {
+    if (!entry || !crosswordGameState) return '?';
+    const first = getEntryCells(entry)[0];
+    return crosswordGameState.board[first.row][first.col].number || '?';
   }
 
   function renderCrosswordBoard() {
@@ -687,6 +898,13 @@
         letter.textContent = crosswordGameState.answers[cellKey(row, col)] || '';
         button.appendChild(letter);
 
+        const lockedHere = cell.entries.some(entry => isEntryLocked(entry));
+        if (lockedHere) button.classList.add('locked', 'correct');
+
+        if (crosswordGameState.lastErrorEntry && cell.entries.some(entry => entryKey(entry) === crosswordGameState.lastErrorEntry)) {
+          button.classList.add('incorrect', 'word-error');
+        }
+
         button.addEventListener('click', () => selectCell(row, col));
         container.appendChild(button);
       }
@@ -705,22 +923,18 @@
     down.innerHTML = '';
 
     const entries = [...crosswordGameState.challenge.entries].sort((a, b) => {
-      const aCell = getEntryCells(a)[0];
-      const bCell = getEntryCells(b)[0];
-      const aNumber = crosswordGameState.board[aCell.row][aCell.col].number;
-      const bNumber = crosswordGameState.board[bCell.row][bCell.col].number;
-      return aNumber - bNumber || (a.direction === 'across' ? -1 : 1);
+      const numberDifference = getEntryNumber(a) - getEntryNumber(b);
+      return numberDifference || (a.direction === 'across' ? -1 : 1);
     });
 
     entries.forEach(entry => {
-      const first = getEntryCells(entry)[0];
-      const number = crosswordGameState.board[first.row][first.col].number;
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'electronics-crossword-clue';
-      button.dataset.number = number;
+      button.dataset.number = getEntryNumber(entry);
       button.dataset.direction = entry.direction;
-      button.innerHTML = `<span class="electronics-crossword-clue-number">${number}.</span><span class="electronics-crossword-clue-text">${escapeHtml(entry.clue)}</span>`;
+      if (isEntryLocked(entry)) button.classList.add('completed');
+      button.innerHTML = `<span class="electronics-crossword-clue-number">${getEntryNumber(entry)}.</span><span class="electronics-crossword-clue-text">${escapeHtml(entry.clue)}</span>`;
       button.addEventListener('click', () => selectEntry(entry));
       (entry.direction === 'across' ? across : down).appendChild(button);
     });
@@ -740,8 +954,7 @@
         if (cell) cell.classList.add('word-selected');
       });
 
-      const first = getEntryCells(entry)[0];
-      const number = crosswordGameState.board[first.row][first.col].number;
+      const number = getEntryNumber(entry);
       const clue = document.querySelector(`.electronics-crossword-clue[data-number="${number}"][data-direction="${entry.direction}"]`);
       if (clue) clue.classList.add('active');
     }
@@ -750,49 +963,56 @@
     if (selected) selected.classList.add('selected');
   }
 
+  function updateCorrectCount() {
+    if (!crosswordGameState) return;
+    const uniqueLockedCells = new Set();
+    crosswordGameState.challenge.entries.forEach(entry => {
+      if (isEntryLocked(entry)) getEntryCells(entry).forEach(position => uniqueLockedCells.add(cellKey(position.row, position.col)));
+    });
+    crosswordGameState.correct = uniqueLockedCells.size;
+    crosswordGameState.total = crosswordGameState.board.flat().filter(cell => cell.active).length;
+  }
+
+  function checkForAllWordsComplete() {
+    if (!crosswordGameState) return;
+    const allLocked = crosswordGameState.challenge.entries.every(entry => isEntryLocked(entry));
+    if (!allLocked) return;
+
+    crosswordGameState.answered = true;
+    crosswordGameState.selected = null;
+    updateCorrectCount();
+    updateCrosswordStatus();
+    renderCrosswordClues();
+
+    if (typeof window.toast === 'function') window.toast('🎉 Crossword complete! Every word is locked in.');
+  }
+
   function submitElectronicsCrossword() {
     if (!crosswordGameState) return;
 
-    const checked = new Set();
-    let correct = 0;
-    let total = 0;
-
     crosswordGameState.challenge.entries.forEach(entry => {
-      const answer = normalizeAnswer(entry.answer);
-      getEntryCells(entry).forEach((position, index) => {
-        const key = cellKey(position.row, position.col);
-        if (checked.has(key)) return;
-        checked.add(key);
-        total++;
-        if ((crosswordGameState.answers[key] || '') === answer[index]) correct++;
-      });
+      if (wordIsComplete(entry) && wordIsCorrect(entry)) lockEntry(entry);
     });
 
-    crosswordGameState.correct = correct;
-    crosswordGameState.total = total;
+    updateCorrectCount();
     crosswordGameState.answered = true;
-    renderCrosswordResults();
 
-    if (typeof window.toast === 'function') {
-      window.toast(correct === total && total > 0 ? '🎉 Crossword complete!' : `${correct} of ${total} letters correct`);
+    if (crosswordGameState.challenge.entries.every(entry => isEntryLocked(entry))) {
+      crosswordGameState.selected = null;
+      if (typeof window.toast === 'function') window.toast('🎉 Crossword complete!');
+    } else if (typeof window.toast === 'function') {
+      window.toast(`${crosswordGameState.correct} of ${crosswordGameState.total} squares are correct.`);
     }
+
+    renderCrosswordBoard();
+    renderCrosswordClues();
+    updateCrosswordStatus();
   }
 
   function renderCrosswordResults() {
-    if (!crosswordGameState) return;
-
-    crosswordGameState.challenge.entries.forEach(entry => {
-      const answer = normalizeAnswer(entry.answer);
-      getEntryCells(entry).forEach((position, index) => {
-        const key = cellKey(position.row, position.col);
-        const cell = document.querySelector(`.electronics-crossword-cell[data-row="${position.row}"][data-col="${position.col}"]`);
-        if (!cell) return;
-        cell.classList.remove('correct', 'incorrect');
-        const submitted = crosswordGameState.answers[key];
-        if (submitted) cell.classList.add(submitted === answer[index] ? 'correct' : 'incorrect');
-      });
-    });
-
+    updateCorrectCount();
+    renderCrosswordBoard();
+    renderCrosswordClues();
     updateCrosswordStatus();
   }
 
@@ -800,16 +1020,25 @@
     const status = document.getElementById('electronicsCrosswordStatus');
     if (!status || !crosswordGameState) return;
 
-    if (crosswordGameState.answered && crosswordGameState.correct === crosswordGameState.total) {
+    const allLocked = crosswordGameState.challenge.entries.every(entry => isEntryLocked(entry));
+    if (allLocked) {
       status.className = 'electronics-crossword-status complete';
-      status.innerHTML = '<strong>🎉 Crossword complete!</strong><span>You solved every electronics term correctly.</span>';
+      status.innerHTML = '<strong>🎉 Crossword complete!</strong><span>Every word was solved correctly and locked.</span>';
       return;
     }
 
+    if (crosswordGameState.lastErrorEntry) {
+      const entry = crosswordGameState.challenge.entries.find(item => entryKey(item) === crosswordGameState.lastErrorEntry);
+      status.className = 'electronics-crossword-status error';
+      status.innerHTML = `<strong>Not quite — ${getEntryNumber(entry)} ${entry?.direction === 'across' ? 'Across' : 'Down'} needs another try.</strong><span>Finish the word correctly to lock it.</span>`;
+      return;
+    }
+
+    const lockedWords = crosswordGameState.challenge.entries.filter(entry => isEntryLocked(entry)).length;
     status.className = 'electronics-crossword-status';
-    status.innerHTML = crosswordGameState.answered
-      ? `<strong>${crosswordGameState.correct} / ${crosswordGameState.total} correct</strong><span>Review the highlighted squares and try again.</span>`
-      : '<strong>Ready to solve</strong><span>Fill the grid, then check your answers.</span>';
+    status.innerHTML = lockedWords
+      ? `<strong>${lockedWords} / ${crosswordGameState.challenge.entries.length} words locked</strong><span>Correct words lock automatically. Keep going.</span>`
+      : '<strong>Ready to solve</strong><span>Finish a word to have it checked automatically.</span>';
   }
 
   function updateBoardSize() {
@@ -822,30 +1051,23 @@
     const availableHeight = Math.max(0, rect.height - 20);
     const size = Math.floor(Math.min(availableWidth / GRID_COLS, availableHeight / GRID_ROWS));
 
-    if (Number.isFinite(size) && size > 0) {
-      board.style.setProperty('--crossword-cell-size', `${Math.max(16, Math.min(52, size))}px`);
-    }
+    if (Number.isFinite(size) && size > 0) board.style.setProperty('--crossword-cell-size', `${Math.max(16, Math.min(52, size))}px`);
   }
 
   function observeBoard() {
     if (boardResizeObserver) boardResizeObserver.disconnect();
-
     const shell = document.querySelector('.electronics-crossword-board-shell');
     if (!shell) return;
 
     updateBoardSize();
-
     if ('ResizeObserver' in window) {
       boardResizeObserver = new ResizeObserver(updateBoardSize);
       boardResizeObserver.observe(shell);
     }
-
     requestAnimationFrame(updateBoardSize);
   }
 
   function initializeCrosswordDOM() {
-    /* IMPORTANT: the app inserts the HTML returned by the view AFTER
-       electronicsCrosswordView() returns. Initialize on the next frame. */
     requestAnimationFrame(() => {
       renderCrosswordBoard();
       renderCrosswordClues();
@@ -892,7 +1114,6 @@
   function electronicsCrosswordView() {
     injectStyles();
     if (!crosswordGameState) resetElectronicsCrossword();
-
     const challenge = crosswordGameState.challenge;
 
     const html = `
@@ -940,11 +1161,11 @@
               <div class="electronics-crossword-howto-body">
                 <p>${escapeHtml(challenge.instruction)}</p>
                 <ul>
-                  <li>Click a square to select its word.</li>
-                  <li>Click an intersection twice to switch direction.</li>
-                  <li>Type letters to move forward automatically.</li>
-                  <li>Use <strong>Space</strong> to switch Across / Down.</li>
-                  <li>Use the arrow keys to move around the grid.</li>
+                  <li>Type a complete word; it is checked when you reach its final square.</li>
+                  <li>Correct words turn green and lock.</li>
+                  <li>After a correct word, typing continues at the next unsolved word.</li>
+                  <li>A wrong completed word wiggles and stays editable.</li>
+                  <li>Use <strong>Space</strong> or click an intersection to switch Across / Down.</li>
                 </ul>
               </div>
             </section>
@@ -977,9 +1198,12 @@
   function clearElectronicsCrossword() {
     if (!crosswordGameState) return;
     crosswordGameState.answers = {};
+    crosswordGameState.lockedEntries = new Set();
     crosswordGameState.answered = false;
     crosswordGameState.correct = 0;
-    crosswordGameState.total = crosswordGameState.board.flat().filter(cell => cell.active).length;
+    crosswordGameState.lastErrorEntry = null;
+    crosswordGameState.selected = { row: crosswordGameState.challenge.entries[0].row, col: crosswordGameState.challenge.entries[0].col };
+    crosswordGameState.direction = crosswordGameState.challenge.entries[0].direction;
     rerender();
   }
 
