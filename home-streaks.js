@@ -1,8 +1,8 @@
-/* EcE Hub — real calendar-based study streaks */
+/* EcE Hub — lightweight calendar-based study streaks */
 (function installHomeStreaks() {
   const STORAGE_KEY = 'eceHubStudyDatesV1';
-  const MAX_DAYS = 180;
-  let observer = null;
+  let lastDateKey = '';
+  let renderQueued = false;
 
   function localDateKey(date = new Date()) {
     const y = date.getFullYear();
@@ -15,103 +15,100 @@
     try {
       const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
       return new Set(Array.isArray(raw) ? raw.filter(v => /^\d{4}-\d{2}-\d{2}$/.test(v)) : []);
-    } catch (_) {
-      return new Set();
-    }
+    } catch (_) { return new Set(); }
   }
 
   function writeDates(dates) {
-    const sorted = [...dates].sort().slice(-MAX_DAYS);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sorted));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...dates].sort().slice(-180)));
   }
 
   function markTodayAsStudied() {
     const dates = readDates();
     dates.add(localDateKey());
     writeDates(dates);
-    // Let the existing SPA click/navigation handlers finish first.
-    setTimeout(render, 0);
+    queueRender();
   }
 
-  function daysForLastSeven() {
+  function getWeek() {
     const dates = readDates();
     const today = new Date();
-    const result = [];
-
+    const days = [];
     for (let offset = 6; offset >= 0; offset--) {
-      const day = new Date(today);
-      day.setHours(12, 0, 0, 0);
-      day.setDate(today.getDate() - offset);
-      result.push({
-        date: day,
-        key: localDateKey(day),
-        active: dates.has(localDateKey(day)),
-        isToday: offset === 0
-      });
+      const date = new Date(today);
+      date.setHours(12, 0, 0, 0);
+      date.setDate(today.getDate() - offset);
+      days.push({ date, active: dates.has(localDateKey(date)), isToday: offset === 0 });
     }
-    return result;
-  }
-
-  function buildWeekMarkup(days) {
-    return days.map(d => {
-      const label = d.date.toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2);
-      const dayNumber = d.date.getDate();
-      const title = d.date.toLocaleDateString(undefined, {
-        weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
-      });
-      const classes = [d.active ? 'is-active' : '', d.isToday ? 'is-today' : '']
-        .filter(Boolean).join(' ');
-      return `<span class="${classes}" title="${title}"><b>${label}</b><small>${dayNumber}</small></span>`;
-    }).join('');
+    return days;
   }
 
   function render() {
+    renderQueued = false;
     const week = document.querySelector('.home-week');
     if (!week) return;
 
-    const days = daysForLastSeven();
-    const completed = days.filter(d => d.active).length;
-    const percent = Math.min(100, Math.round((completed / 7) * 100));
-    const markup = buildWeekMarkup(days);
+    const days = getWeek();
+    const completed = days.reduce((n, d) => n + (d.active ? 1 : 0), 0);
+    const percent = Math.round((completed / 7) * 100);
+    const html = days.map(d => {
+      const label = d.date.toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2);
+      const title = d.date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+      const cls = `${d.active ? 'is-active ' : ''}${d.isToday ? 'is-today' : ''}`.trim();
+      return `<span class="${cls}" title="${title}"><b>${label}</b><small>${d.date.getDate()}</small></span>`;
+    }).join('');
 
-    // Critical: only touch the week DOM when its contents actually changed.
-    // This prevents the MutationObserver from observing its own update forever.
-    if (week.innerHTML !== markup) week.innerHTML = markup;
-
-    const number = document.querySelector('.home-streak-number');
-    if (number) {
-      const value = `${completed}`;
-      if (number.firstChild?.nodeValue !== value) number.innerHTML = `${value}<span>/ 7 days</span>`;
+    if (week.dataset.streakMarkup !== html) {
+      week.innerHTML = html;
+      week.dataset.streakMarkup = html;
     }
 
+    const number = document.querySelector('.home-streak-number');
+    if (number) number.innerHTML = `${completed}<span>/ 7 days</span>`;
     const percentEl = document.querySelector('.home-percent');
-    if (percentEl && percentEl.textContent !== `${percent}%`) percentEl.textContent = `${percent}%`;
-
+    if (percentEl) percentEl.textContent = `${percent}%`;
     const progress = document.querySelector('.goal-progress i');
-    if (progress && progress.style.width !== `${percent}%`) progress.style.width = `${percent}%`;
+    if (progress) progress.style.width = `${percent}%`;
 
-    const heroStats = document.querySelectorAll('.home-hero-stat strong');
-    if (heroStats.length && heroStats[0].textContent !== `${completed}/7`) {
-      heroStats[0].textContent = `${completed}/7`;
+    const heroStat = document.querySelector('.home-hero-stat strong');
+    if (heroStat) heroStat.textContent = `${completed}/7`;
+  }
+
+  function queueRender() {
+    if (renderQueued) return;
+    renderQueued = true;
+    requestAnimationFrame(render);
+  }
+
+  document.addEventListener('click', event => {
+    const el = event.target.closest?.('[data-action]');
+    if (!el) return;
+    const action = String(el.getAttribute('data-action') || '').toLowerCase();
+    if (action.includes('study')) markTodayAsStudied();
+  });
+
+  // Do not use MutationObserver here. The app is a SPA, and observing the
+  // entire body makes navigation unnecessarily expensive. Instead, render
+  // when the route settles and only once when the calendar is present.
+  let lastWeekElement = null;
+  function checkHome() {
+    const week = document.querySelector('.home-week');
+    if (week && week !== lastWeekElement) {
+      lastWeekElement = week;
+      render();
     }
   }
 
-  // Study actions are the source of truth: opening a study session marks that
-  // calendar day as studied. Other actions are intentionally ignored.
-  document.addEventListener('click', event => {
-    const actionEl = event.target.closest?.('[data-action]');
-    if (!actionEl) return;
-    const action = String(actionEl.getAttribute('data-action') || '').toLowerCase();
-    if (action.includes('study')) markTodayAsStudied();
-  }, true);
+  window.addEventListener('hashchange', () => setTimeout(checkHome, 0));
+  document.addEventListener('click', () => setTimeout(checkHome, 0));
+  setTimeout(checkHome, 0);
 
-  // The SPA replaces Home's DOM during navigation. Observe those replacements,
-  // but render only when the calculated calendar markup differs from the DOM.
-  observer = new MutationObserver(() => {
-    if (document.querySelector('.home-week')) render();
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
-
-  setInterval(render, 60000);
-  setTimeout(render, 0);
+  // Only check once per minute for a date rollover; no DOM observer needed.
+  setInterval(() => {
+    const key = localDateKey();
+    if (key !== lastDateKey) {
+      lastDateKey = key;
+      lastWeekElement = null;
+      checkHome();
+    }
+  }, 60000);
 })();
