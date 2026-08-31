@@ -1,15 +1,15 @@
-/* EcE Hub — Electronics Crossword runtime lock/navigation patch
+/* EcE Hub — Electronics Crossword loader + locked-cell behavior
  *
- * Loads the stable crossword implementation and keeps its API intact when
- * explore-games.js initializes window.ExploreGames later in the page lifecycle.
- * Also prevents validated cells from being edited through Across/Down.
+ * IMPORTANT: this file must expose the crossword API immediately.
+ * app.js can call startElectronicsCrossword before the original crossword
+ * script has finished loading. We therefore install a permanent
+ * window.ExploreGames bridge first, then load the stable crossword runtime.
  */
 (function () {
   'use strict';
 
   const ORIGINAL = 'https://raw.githubusercontent.com/espaderarios/EcEHub/7c8d09d5b34671844c3fe19dab39b25f9d42d1b0/electronics-crossword.js';
-  const FLAG = '__eceCrosswordLockedCellPatchLoaded';
-  const API_FLAG = '__eceCrosswordApiBridgeInstalled';
+  const FLAG = '__eceCrosswordLoaderInstalled';
   const API_METHODS = [
     'startElectronicsCrossword',
     'submitElectronicsCrossword',
@@ -22,87 +22,97 @@
   if (window[FLAG]) return;
   window[FLAG] = true;
 
+  let backing = window.ExploreGames && typeof window.ExploreGames === 'object'
+    ? window.ExploreGames
+    : {};
   let crosswordApi = {};
-  let exploreGamesBacking = null;
+  let ready = false;
+  const pending = [];
 
-  function captureCrosswordApi() {
-    const current = window.ExploreGames;
+  function capture() {
+    const current = backing;
     if (!current || typeof current !== 'object') return;
-
     API_METHODS.forEach(name => {
-      if (typeof current[name] === 'function') crosswordApi[name] = current[name];
-    });
-  }
-
-  /*
-   * Both the crossword and Explore Games use window.ExploreGames.
-   * A later assignment such as window.ExploreGames = {...} used to erase
-   * the crossword methods and caused:
-   *   startElectronicsCrossword is not a function
-   *
-   * Keep the two game APIs merged regardless of script load order.
-   */
-  function installExploreGamesBridge() {
-    if (window[API_FLAG]) return;
-
-    captureCrosswordApi();
-    exploreGamesBacking = window.ExploreGames || {};
-
-    try {
-      Object.defineProperty(window, 'ExploreGames', {
-        configurable: true,
-        enumerable: true,
-        get() {
-          return exploreGamesBacking;
-        },
-        set(nextValue) {
-          const next = nextValue && typeof nextValue === 'object' ? nextValue : {};
-          exploreGamesBacking = Object.assign({}, next, crosswordApi);
-        }
-      });
-
-      exploreGamesBacking = Object.assign({}, exploreGamesBacking, crosswordApi);
-      window[API_FLAG] = true;
-    } catch (_) {
-      window[API_FLAG] = true;
-      ensureExploreGamesApi();
-    }
-  }
-
-  function ensureExploreGamesApi() {
-    captureCrosswordApi();
-
-    if (!window.ExploreGames || typeof window.ExploreGames !== 'object') {
-      try { window.ExploreGames = {}; } catch (_) { return; }
-    }
-
-    API_METHODS.forEach(name => {
-      if (typeof crosswordApi[name] === 'function' && typeof window.ExploreGames[name] !== 'function') {
-        try { window.ExploreGames[name] = crosswordApi[name]; } catch (_) {}
+      if (typeof current[name] === 'function' && current[name] !== proxies[name]) {
+        crosswordApi[name] = current[name];
       }
     });
   }
 
-  function loadOriginal() {
-    const existing = document.querySelector('script[data-ece-crossword-original]');
-    if (existing) {
-      captureCrosswordApi();
-      installExploreGamesBridge();
-      ensureExploreGamesApi();
-      installPatch();
-      return;
+  function runWhenReady(name, args) {
+    const fn = crosswordApi[name];
+    if (typeof fn === 'function') {
+      try { return fn.apply(backing, args); } catch (error) {
+        console.error(`EcE Hub crossword ${name} failed:`, error);
+        throw error;
+      }
     }
 
+    pending.push({ name, args });
+    loadOriginal();
+    return undefined;
+  }
+
+  const proxies = {};
+  API_METHODS.forEach(name => {
+    proxies[name] = function (...args) {
+      return runWhenReady(name, args);
+    };
+  });
+
+  function merge(next) {
+    const value = next && typeof next === 'object' ? next : {};
+    backing = Object.assign({}, value, crosswordApi, proxies);
+  }
+
+  /* Install this BEFORE loading the original runtime. */
+  try {
+    Object.defineProperty(window, 'ExploreGames', {
+      configurable: true,
+      enumerable: true,
+      get() { return backing; },
+      set(next) { merge(next); }
+    });
+  } catch (error) {
+    console.warn('EcE Hub crossword API bridge could not redefine ExploreGames:', error);
+  }
+
+  merge(backing);
+
+  function flushPending() {
+    if (!ready) return;
+    while (pending.length) {
+      const job = pending.shift();
+      const fn = crosswordApi[job.name];
+      if (typeof fn === 'function') {
+        try { fn.apply(backing, job.args); } catch (error) {
+          console.error(`EcE Hub queued crossword ${job.name} failed:`, error);
+        }
+      }
+    }
+  }
+
+  function loadOriginal() {
+    if (ready || document.querySelector('script[data-ece-crossword-original]')) return;
+
     const script = document.createElement('script');
-    script.src = `${ORIGINAL}?v=locked-cell-fix-2`;
+    script.src = `${ORIGINAL}?v=api-race-fix-3`;
     script.async = false;
     script.dataset.eceCrosswordOriginal = 'true';
+
     script.addEventListener('load', () => {
-      captureCrosswordApi();
-      installExploreGamesBridge();
-      ensureExploreGamesApi();
-      installPatch();
+      capture();
+      ready = Object.keys(crosswordApi).length > 0;
+      merge(backing);
+      flushPending();
+      installLockedCellPatch();
+      console.info('EcE Hub crossword runtime loaded; ExploreGames API ready.');
     }, { once: true });
+
+    script.addEventListener('error', () => {
+      console.error('EcE Hub could not load the crossword runtime:', ORIGINAL);
+    }, { once: true });
+
     document.head.appendChild(script);
   }
 
@@ -137,7 +147,6 @@
       const numberEl = cell.querySelector('.electronics-crossword-number');
       return numberEl && numberEl.textContent.trim() === String(number);
     });
-
     if (!start) return [];
 
     const row = Number(start.dataset.row);
@@ -151,7 +160,6 @@
       if (!cell) break;
       result.push(cell);
     }
-
     return result;
   }
 
@@ -161,12 +169,11 @@
 
     let index = word.indexOf(fromCell);
     if (index < 0) index = backwards ? word.length : -1;
-
     const step = backwards ? -1 : 1;
+
     for (let i = index + step; i >= 0 && i < word.length; i += step) {
       if (!word[i].classList.contains('locked')) return word[i];
     }
-
     return null;
   }
 
@@ -176,97 +183,73 @@
 
     for (let offset = 1; offset <= clues.length; offset++) {
       const clue = clues[(start + offset + clues.length) % clues.length];
-      const editable = wordCells(clue).find(cell => !cell.classList.contains('locked'));
-      if (editable) return editable;
+      const cell = wordCells(clue).find(c => !c.classList.contains('locked'));
+      if (cell) return cell;
     }
-
     return null;
   }
 
-  function selectCell(cell) {
-    if (!cell || cell.classList.contains('locked')) return false;
-    cell.click();
-    return true;
+  function moveToNextEditable(fromCell, backwards) {
+    const clue = activeClue();
+    const next = nextUnlockedInWord(fromCell, clue, backwards) || nextUnlockedClueCell(clue);
+    if (next && !next.classList.contains('locked')) next.click();
   }
 
   function redirectLockedSelection() {
     const selected = selectedCell();
-    if (!selected || !selected.classList.contains('locked')) return false;
-
-    const clue = activeClue();
-    const next = nextUnlockedInWord(selected, clue, false) || nextUnlockedClueCell(clue);
-    if (next) return selectCell(next);
-    return false;
+    if (!selected || !selected.classList.contains('locked')) return;
+    moveToNextEditable(selected, false);
   }
 
-  function installPatch() {
+  function installLockedCellPatch() {
     if (window.__eceCrosswordLockedCellPatchInstalled) return;
     window.__eceCrosswordLockedCellPatchInstalled = true;
 
+    /* A locked cell is never selectable for editing. Clicking it advances. */
     document.addEventListener('click', event => {
       const cell = event.target.closest?.('#electronicsCrosswordBoard .electronics-crossword-cell');
       if (!cell || !cell.classList.contains('locked')) return;
 
       event.preventDefault();
       event.stopImmediatePropagation();
-
-      const clue = activeClue();
-      const next = nextUnlockedInWord(cell, clue, false) || nextUnlockedClueCell(clue);
-      if (next) next.click();
+      moveToNextEditable(cell, false);
     }, true);
 
+    /* Keyboard entry skips locked cells in either Across or Down. */
     document.addEventListener('keydown', event => {
       if (!board()) return;
-      if (event.target && (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable)) return;
+      if (event.target?.tagName === 'INPUT' || event.target?.tagName === 'TEXTAREA' || event.target?.isContentEditable) return;
 
       const selected = selectedCell();
       if (!selected) return;
 
-      const clue = activeClue();
-      const isLetter = /^[a-zA-Z]$/.test(event.key);
-      const isBackspace = event.key === 'Backspace';
+      const letter = /^[a-zA-Z]$/.test(event.key);
+      const backspace = event.key === 'Backspace';
 
-      if (selected.classList.contains('locked') && (isLetter || isBackspace)) {
+      if (selected.classList.contains('locked') && (letter || backspace)) {
         event.preventDefault();
         event.stopImmediatePropagation();
-
-        const next = isBackspace
-          ? nextUnlockedInWord(selected, clue, true) || nextUnlockedClueCell(clue)
-          : nextUnlockedInWord(selected, clue, false) || nextUnlockedClueCell(clue);
-
-        if (next) next.click();
+        moveToNextEditable(selected, backspace);
         return;
       }
 
-      if (isLetter || isBackspace) {
+      if (letter || backspace) {
         setTimeout(redirectLockedSelection, 0);
       }
     }, true);
 
+    /* The crossword rerenders its cells. Re-assert the locked-cell rule after each render. */
     const observer = new MutationObserver(() => {
-      if (!board()) return;
-      requestAnimationFrame(redirectLockedSelection);
+      if (board()) requestAnimationFrame(redirectLockedSelection);
     });
-
     observer.observe(document.documentElement, {
       subtree: true,
       childList: true,
       attributes: true,
       attributeFilter: ['class']
     });
-
-    const apiSync = setInterval(() => ensureExploreGamesApi(), 100);
-    setTimeout(() => clearInterval(apiSync), 15000);
-
-    const boardWait = setInterval(() => {
-      ensureExploreGamesApi();
-      if (board()) {
-        clearInterval(boardWait);
-        redirectLockedSelection();
-      }
-    }, 100);
-    setTimeout(() => clearInterval(boardWait), 15000);
   }
 
+  /* Expose the API immediately, then load the real crossword implementation. */
   loadOriginal();
 })();
