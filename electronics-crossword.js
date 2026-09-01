@@ -10,7 +10,7 @@
 
   /* Keep Level 2 pinned to the newest fixed runtime. */
   const RUNTIME_LEVEL2 =
-    'https://cdn.jsdelivr.net/gh/espaderarios/EcEHub@078154787d7c9cfcab8fd1b9d49bdaab551f91ee/electronics-crossword-level2.js';
+    'https://cdn.jsdelivr.net/gh/espaderarios/EcEHub@eb1109fe127e67bdafb8f39854ccd3ab641b57cb/electronics-crossword-level2.js';
 
   const FLAG = '__eceCrosswordRuntimeBridgeInstalled';
   const GUARD_FLAG = '__eceCrosswordLockedCellGuardInstalled';
@@ -105,7 +105,7 @@
       }
 
       const script = document.createElement('script');
-      script.src = `${src}?v=crossword-${key}-3`;
+      script.src = `${src}?v=crossword-${key}-4`;
       script.async = false;
       script.dataset.eceCrosswordRuntime = key;
       script.addEventListener('load', resolve, { once: true });
