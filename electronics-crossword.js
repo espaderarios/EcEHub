@@ -8,8 +8,9 @@
   const RUNTIME_LEVEL1 =
     'https://cdn.jsdelivr.net/gh/espaderarios/EcEHub@7c8d09d5b34671844c3fe19dab39b25f9d42d1b0/electronics-crossword.js';
 
+  /* Keep Level 2 pinned to the newest fixed runtime. */
   const RUNTIME_LEVEL2 =
-    'https://cdn.jsdelivr.net/gh/espaderarios/EcEHub@5fba845aee00a6b0f1d69f90014a62292c999d02/electronics-crossword-level2.js';
+    'https://cdn.jsdelivr.net/gh/espaderarios/EcEHub@078154787d7c9cfcab8fd1b9d49bdaab551f91ee/electronics-crossword-level2.js';
 
   const FLAG = '__eceCrosswordRuntimeBridgeInstalled';
   const GUARD_FLAG = '__eceCrosswordLockedCellGuardInstalled';
@@ -88,7 +89,6 @@
 
   function flushPending() {
     if (!loaded) return;
-
     while (pending.length) {
       const job = pending.shift();
       run(job.name, job.args);
@@ -105,7 +105,7 @@
       }
 
       const script = document.createElement('script');
-      script.src = `${src}?v=crossword-${key}-2`;
+      script.src = `${src}?v=crossword-${key}-3`;
       script.async = false;
       script.dataset.eceCrosswordRuntime = key;
       script.addEventListener('load', resolve, { once: true });
@@ -175,16 +175,6 @@
     if (window[AUTO_VALIDATE_FLAG]) return;
     window[AUTO_VALIDATE_FLAG] = true;
 
-    /*
-     * Level 2 originally validates only the entry that receives the final
-     * typed letter. That misses a crossing word whose final letter was
-     * supplied by another already-selected direction.
-     *
-     * The Level 2 submit/check routine already does exactly what we need:
-     * it validates every entry that is completely filled, while leaving
-     * incomplete entries alone. Running it after a key is released therefore
-     * makes a crossing word validate as soon as it becomes complete.
-     */
     document.addEventListener('keyup', event => {
       if (activeLevel !== 2) return;
       if (!document.querySelector('.electronics-crossword-level2')) return;
@@ -251,46 +241,19 @@
         }
       }
 
-      if (step > 0) {
-        const clues = Array.from(
-          document.querySelectorAll('.electronics-crossword-clue:not(.completed)')
-        );
-        const current = document.querySelector('.electronics-crossword-clue.active');
-        const currentIndex = current ? clues.indexOf(current) : -1;
-        const next = clues[currentIndex + 1] || clues[0];
-        if (next) {
-          next.click();
-          return true;
-        }
-      }
-
+      /* Do not invent a new position when the current word has no editable cells. */
       return false;
     };
 
     document.addEventListener('keydown', event => {
       if (!document.getElementById('electronicsCrosswordBoard')) return;
-
       const selected = getSelectedCell();
       if (!selected?.classList.contains('locked')) return;
 
-      if (/^[a-zA-Z]$/.test(event.key)) {
-        jumpAwayFromLocked(1);
-        return;
-      }
-
-      if (event.key === 'Backspace') {
-        jumpAwayFromLocked(-1);
-        return;
-      }
-
-      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-        jumpAwayFromLocked(1);
-        return;
-      }
-
-      if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-        jumpAwayFromLocked(-1);
-      }
+      if (/^[a-zA-Z]$/.test(event.key)) { jumpAwayFromLocked(1); return; }
+      if (event.key === 'Backspace') { jumpAwayFromLocked(-1); return; }
+      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') { jumpAwayFromLocked(1); return; }
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') { jumpAwayFromLocked(-1); return; }
     }, true);
 
     document.addEventListener('click', () => {
@@ -311,9 +274,7 @@
   };
 
   proxies.electronicsCrosswordView = function (...args) {
-    return activeLevel === 2
-      ? level2View(...args)
-      : level1View(...args);
+    return activeLevel === 2 ? level2View(...args) : level1View(...args);
   };
 
   [
@@ -333,12 +294,8 @@
     Object.defineProperty(window, 'ExploreGames', {
       configurable: true,
       enumerable: true,
-      get() {
-        return backing;
-      },
-      set(next) {
-        merge(next);
-      }
+      get() { return backing; },
+      set(next) { merge(next); }
     });
   } catch (error) {
     console.warn('EcE Hub crossword API bridge could not redefine ExploreGames:', error);
