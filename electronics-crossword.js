@@ -13,6 +13,7 @@
 
   const FLAG = '__eceCrosswordRuntimeBridgeInstalled';
   const GUARD_FLAG = '__eceCrosswordLockedCellGuardInstalled';
+  const AUTO_VALIDATE_FLAG = '__eceCrosswordAutoValidateInstalled';
 
   if (window[FLAG]) return;
   window[FLAG] = true;
@@ -104,7 +105,7 @@
       }
 
       const script = document.createElement('script');
-      script.src = `${src}?v=crossword-${key}-1`;
+      script.src = `${src}?v=crossword-${key}-2`;
       script.async = false;
       script.dataset.eceCrosswordRuntime = key;
       script.addEventListener('load', resolve, { once: true });
@@ -128,6 +129,7 @@
       loading = false;
       merge(backing);
       installLockedCellGuard();
+      installAutoValidation();
       installLevel2Launcher();
 
       console.info('EcE Hub Electronics Crossword Level 1 + Level 2 runtimes loaded.');
@@ -167,6 +169,43 @@
     const observer = new MutationObserver(mount);
     observer.observe(document.body, { childList: true, subtree: true });
     mount();
+  }
+
+  function installAutoValidation() {
+    if (window[AUTO_VALIDATE_FLAG]) return;
+    window[AUTO_VALIDATE_FLAG] = true;
+
+    /*
+     * Level 2 originally validates only the entry that receives the final
+     * typed letter. That misses a crossing word whose final letter was
+     * supplied by another already-selected direction.
+     *
+     * The Level 2 submit/check routine already does exactly what we need:
+     * it validates every entry that is completely filled, while leaving
+     * incomplete entries alone. Running it after a key is released therefore
+     * makes a crossing word validate as soon as it becomes complete.
+     */
+    document.addEventListener('keyup', event => {
+      if (activeLevel !== 2) return;
+      if (!document.querySelector('.electronics-crossword-level2')) return;
+      if (!/^[a-zA-Z]$/.test(event.key)) return;
+
+      setTimeout(() => {
+        if (activeLevel !== 2) return;
+        if (!document.querySelector('.electronics-crossword-level2')) return;
+
+        const fn = crosswordApi.submitElectronicsCrosswordLevel2;
+        if (typeof fn !== 'function') return;
+
+        try {
+          fn.apply(backing, []);
+        } catch (error) {
+          console.error('EcE Hub Level 2 automatic validation failed:', error);
+        }
+      }, 0);
+    });
+
+    console.info('EcE Hub Level 2 automatic cross-word validation installed.');
   }
 
   function installLockedCellGuard() {
