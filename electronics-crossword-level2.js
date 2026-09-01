@@ -53,7 +53,6 @@
         };
       });
     });
-    Object.keys(Object.fromEntries(starts)).forEach(key => {});
     return { board, starts };
   }
 
@@ -74,10 +73,6 @@
 
   function entryCells(index) { return cellsFor(ENTRIES[index]); }
 
-  function entryHasLocked(index) {
-    return entryCells(index).some(c => state.locked.has(`${c.row}:${c.col}`));
-  }
-
   function entryIsComplete(index) {
     return entryCells(index).every(c => state.values[c.row][c.col]);
   }
@@ -91,18 +86,37 @@
     state.completed.add(index);
   }
 
+  /*
+   * Find another editable cell without using the ENTRIES array order.
+   * The array is intentionally organized by board construction order, not
+   * clue order, so the old implementation incorrectly sent #1 Down to #6.
+   *
+   * First stay inside the current word. If that word has just been locked,
+   * continue to the next unsolved clue in numerical crossword order.
+   */
   function nextEditableCell(index, fromOffset = -1) {
     const cells = entryCells(index);
     for (let i = fromOffset + 1; i < cells.length; i++) {
       if (!state.locked.has(`${cells[i].row}:${cells[i].col}`)) return cells[i];
     }
-    for (let i = 0; i < ENTRIES.length; i++) {
-      const candidateIndex = (index + 1 + i) % ENTRIES.length;
-      if (!state.completed.has(candidateIndex)) {
-        const cell = entryCells(candidateIndex).find(c => !state.locked.has(`${c.row}:${c.col}`));
-        if (cell) { state.activeEntry = candidateIndex; return cell; }
+
+    const ordered = ENTRIES
+      .map((entry, entryIndex) => ({ entry, entryIndex }))
+      .sort((a, b) => a.entry.number - b.entry.number);
+
+    const currentPosition = ordered.findIndex(item => item.entryIndex === index);
+    for (let step = 1; step <= ordered.length; step++) {
+      const candidate = ordered[(currentPosition + step + ordered.length) % ordered.length];
+      if (state.completed.has(candidate.entryIndex)) continue;
+
+      const cell = entryCells(candidate.entryIndex)
+        .find(c => !state.locked.has(`${c.row}:${c.col}`));
+      if (cell) {
+        state.activeEntry = candidate.entryIndex;
+        return cell;
       }
     }
+
     return null;
   }
 
@@ -126,23 +140,34 @@
       index = indexes[(indexes.indexOf(index) + 1) % indexes.length];
     }
     selectEntry(index, { row, col });
+
     if (state.locked.has(`${row}:${col}`)) {
-      const next = nextEditableCell(index, entryCells(index).findIndex(c => c.row === row && c.col === col));
+      const next = nextEditableCell(
+        index,
+        entryCells(index).findIndex(c => c.row === row && c.col === col)
+      );
       if (next) state.selected = next;
     }
   }
 
   function validateEntry(index) {
     if (!entryIsComplete(index)) return false;
+
     const correct = entryWord(index) === ENTRIES[index].answer;
     if (correct) {
       lockEntry(index);
       state.errorEntry = null;
       state.message = `${ENTRIES[index].number} ${ENTRIES[index].direction === 'across' ? 'Across' : 'Down'} is correct and locked.`;
+
+      /*
+       * IMPORTANT: never jump according to the internal array position.
+       * After #1 Down, for example, the next clue is #2 Across, not #6.
+       */
       const next = nextEditableCell(index, -1);
       state.selected = next;
       return true;
     }
+
     state.errorEntry = index;
     state.message = `Not quite — check ${ENTRIES[index].number} ${ENTRIES[index].direction === 'across' ? 'Across' : 'Down'} and try again.`;
     return false;
@@ -151,28 +176,36 @@
   function inputLetter(letter) {
     if (!state?.selected) selectEntry(state?.activeEntry || 0);
     if (!state?.selected) return;
+
     let cell = state.selected;
     if (state.locked.has(`${cell.row}:${cell.col}`)) {
-      cell = nextEditableCell(state.activeEntry, entryCells(state.activeEntry).findIndex(c => c.row === cell.row && c.col === cell.col));
+      cell = nextEditableCell(
+        state.activeEntry,
+        entryCells(state.activeEntry).findIndex(c => c.row === cell.row && c.col === cell.col)
+      );
       if (!cell) return;
       state.selected = cell;
     }
+
     state.values[cell.row][cell.col] = letter.toUpperCase();
     const cells = entryCells(state.activeEntry);
     const offset = cells.findIndex(c => c.row === cell.row && c.col === cell.col);
+
     if (offset === cells.length - 1) {
       validateEntry(state.activeEntry);
       if (!state.completed.has(state.activeEntry)) state.selected = cell;
     } else {
       state.selected = nextEditableCell(state.activeEntry, offset);
     }
+
     render();
   }
 
   function backspace() {
     if (!state?.selected) return;
     const cells = entryCells(state.activeEntry);
-    let offset = cells.findIndex(c => c.row === state.selected.row && c.col === state.selected.col);
+    const offset = cells.findIndex(c => c.row === state.selected.row && c.col === state.selected.col);
+
     for (let i = offset; i >= 0; i--) {
       const c = cells[i];
       if (!state.locked.has(`${c.row}:${c.col}`)) {
@@ -189,10 +222,14 @@
     const cells = entryCells(state.activeEntry);
     const offset = cells.findIndex(c => c.row === state.selected.row && c.col === state.selected.col);
     const next = cells[offset + delta];
+
     if (next) {
       state.selected = next;
       if (state.locked.has(`${next.row}:${next.col}`)) {
-        state.selected = nextEditableCell(state.activeEntry, offset + (delta > 0 ? 0 : -2)) || next;
+        state.selected = nextEditableCell(
+          state.activeEntry,
+          offset + (delta > 0 ? 0 : -2)
+        ) || next;
       }
       render();
     }
@@ -237,12 +274,14 @@
       render();
       return;
     }
+
     const clue = event.target.closest?.('[data-cw2-entry]');
     if (clue) {
       selectEntry(Number(clue.dataset.cw2Entry));
       render();
       return;
     }
+
     const action = event.target.closest?.('[data-cw2-action]')?.dataset?.cw2Action;
     if (action === 'clear') clear();
     if (action === 'check') checkAll();
@@ -257,7 +296,12 @@
     if (event.key === 'Backspace') { event.preventDefault(); backspace(); return; }
     if (event.key === 'ArrowRight' || event.key === 'ArrowDown') { event.preventDefault(); arrow(1); return; }
     if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') { event.preventDefault(); arrow(-1); return; }
-    if (event.key === ' ') { event.preventDefault(); const cell = state.selected; if (cell) selectCell(cell.row, cell.col); render(); }
+    if (event.key === ' ') {
+      event.preventDefault();
+      const cell = state.selected;
+      if (cell) selectCell(cell.row, cell.col);
+      render();
+    }
   }
 
   function installEvents() {
@@ -369,8 +413,6 @@
   function view() {
     injectStyles(); installEvents();
     if (!state) reset();
-    const across=ENTRIES.filter(e=>e.direction==='across').map((e)=>ENTRIES.indexOf(e));
-    const down=ENTRIES.filter(e=>e.direction==='down').map((e)=>ENTRIES.indexOf(e));
     return `<section class="electronics-crossword-level2" id="electronicsCrosswordLevel2Root">
       <div class="cw2-header">
         <button type="button" data-cw2-action="exit">← Exit</button>
@@ -398,11 +440,9 @@
   }
 
   window.ExploreGames = window.ExploreGames || {};
-  window.ExploreGames.startElectronicsCrosswordLevel2 = start;
   window.ExploreGames.electronicsCrosswordLevel2View = view;
-  window.ExploreGames.clearElectronicsCrosswordLevel2 = clear;
+  window.ExploreGames.startElectronicsCrosswordLevel2 = start;
   window.ExploreGames.submitElectronicsCrosswordLevel2 = checkAll;
+  window.ExploreGames.clearElectronicsCrosswordLevel2 = clear;
   window.ExploreGames.exitElectronicsCrosswordLevel2 = exit;
-
-  console.info('EcE Hub Electronics Crossword Level 2 installed.');
 })();
