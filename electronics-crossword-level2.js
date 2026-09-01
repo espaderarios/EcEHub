@@ -86,14 +86,6 @@
     state.completed.add(index);
   }
 
-  /*
-   * Find another editable cell without using the ENTRIES array order.
-   * The array is intentionally organized by board construction order, not
-   * clue order, so the old implementation incorrectly sent #1 Down to #6.
-   *
-   * First stay inside the current word. If that word has just been locked,
-   * continue to the next unsolved clue in numerical crossword order.
-   */
   function nextEditableCell(index, fromOffset = -1) {
     const cells = entryCells(index);
     for (let i = fromOffset + 1; i < cells.length; i++) {
@@ -122,11 +114,13 @@
 
   function selectEntry(index, preferredCell = null) {
     if (!state) reset();
+    if (!Number.isInteger(index) || !ENTRIES[index]) return;
     state.activeEntry = index;
     const cells = entryCells(index);
-    const cell = preferredCell || cells.find(c => !state.locked.has(`${c.row}:${c.col}`)) || cells[0];
+    const cell = preferredCell || cells.find(c => !state.locked.has(`${c.row}:${c.col}`)) || null;
     state.selected = cell;
     state.errorEntry = null;
+    state.message = `${ENTRIES[index].number} ${ENTRIES[index].direction === 'across' ? 'Across' : 'Down'} selected.`;
   }
 
   function selectCell(row, col) {
@@ -146,7 +140,7 @@
         index,
         entryCells(index).findIndex(c => c.row === row && c.col === col)
       );
-      if (next) state.selected = next;
+      state.selected = next || null;
     }
   }
 
@@ -159,12 +153,8 @@
       state.errorEntry = null;
       state.message = `${ENTRIES[index].number} ${ENTRIES[index].direction === 'across' ? 'Across' : 'Down'} is correct and locked.`;
 
-      /*
-       * IMPORTANT: never jump according to the internal array position.
-       * After #1 Down, for example, the next clue is #2 Across, not #6.
-       */
-      const next = nextEditableCell(index, -1);
-      state.selected = next;
+      /* A correct word never chooses the next clue for the player. */
+      state.selected = null;
       return true;
     }
 
@@ -174,7 +164,6 @@
   }
 
   function inputLetter(letter) {
-    if (!state?.selected) selectEntry(state?.activeEntry || 0);
     if (!state?.selected) return;
 
     let cell = state.selected;
@@ -183,7 +172,11 @@
         state.activeEntry,
         entryCells(state.activeEntry).findIndex(c => c.row === cell.row && c.col === cell.col)
       );
-      if (!cell) return;
+      if (!cell) {
+        state.selected = null;
+        render();
+        return;
+      }
       state.selected = cell;
     }
 
@@ -229,7 +222,7 @@
         state.selected = nextEditableCell(
           state.activeEntry,
           offset + (delta > 0 ? 0 : -2)
-        ) || next;
+        ) || null;
       }
       render();
     }
@@ -426,7 +419,7 @@
           <div class="cw2-actions"><button type="button" data-cw2-action="clear">Clear unlocked</button><button type="button" class="primary" data-cw2-action="check">Check Answers</button></div>
         </section>
         <aside class="cw2-side">
-          <section class="cw2-card cw2-howto"><h2>🧩 How to play</h2><p>Complete the entire word before it is checked. Correct words turn green and lock permanently. Locked letters cannot be edited, even when the same cell is part of another direction.</p><ul><li>Type letters to move automatically.</li><li>Finish a word to validate it.</li><li>Wrong completed words wiggle and stay editable.</li><li>Click an intersection or press Space to switch direction.</li><li>Use Fullscreen when you need a larger board.</li></ul></section>
+          <section class="cw2-card cw2-howto"><h2>🧩 How to play</h2><p>Complete the entire word before it is checked. Correct words turn green and lock permanently. Locked letters cannot be edited, even when the same cell is part of another direction.</p><ul><li>Click any clue number to choose the word you want to answer.</li><li>Type letters to move automatically within the selected word.</li><li>Finish a word to validate it.</li><li>Correct words lock, but the game never forces you to answer a specific clue next.</li><li>Wrong completed words wiggle and stay editable.</li><li>Click an intersection or press Space to switch direction.</li><li>Use Fullscreen when you need a larger board.</li></ul></section>
           <section class="cw2-card cw2-clues"><div class="cw2-section"><h3>Across</h3><div id="electronicsCrosswordLevel2Across"></div></div><div class="cw2-section"><h3>Down</h3><div id="electronicsCrosswordLevel2Down"></div></div></section>
         </aside>
       </div>
