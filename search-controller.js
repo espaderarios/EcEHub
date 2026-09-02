@@ -26,7 +26,6 @@
     return {
       input: document.getElementById('globalSearch'),
       panel: document.getElementById('searchResults'),
-      clear: document.getElementById('searchClear'),
       content: document.getElementById('content'),
       wrap: document.getElementById('searchWrap')
     };
@@ -57,7 +56,6 @@
       state.query = '';
       state.request += 1;
       if (e.input) e.input.value = '';
-      if (e.clear) e.clear.hidden = true;
       if (e.panel) { e.panel.hidden = true; e.panel.innerHTML = ''; }
     }
   }
@@ -217,7 +215,7 @@
     if (!isHome() || !q) return;
     const gs = groups(results);
     const count = gs.reduce((sum, [, items]) => sum + items.length, 0);
-    e.content.innerHTML = `<div class="global-search-page"><div class="global-search-page-header"><div><div class="global-search-eyebrow">EcE HUB SEARCH</div><h1>Search results</h1><p>${loading ? 'Searching…' : `${count} result${count === 1 ? '' : 's'} for`} <strong>“${esc(q)}”</strong></p></div><button type="button" class="btn" data-search-clear-page>Clear search</button></div><div class="global-search-filters" role="tablist"><button type="button" class="active" data-search-filter="all">All</button><button type="button" data-search-filter="books">Books</button><button type="button" data-search-filter="flashcards">Flashcards</button><button type="button" data-search-filter="users">People</button><button type="button" data-search-filter="notes">Notes</button><button type="button" data-search-filter="quizzes">Quizzes</button></div>${gs.length ? gs.map(([t, items]) => `<section class="global-search-section" data-search-section="${t}"><div class="global-search-section-head"><div><span class="global-search-section-icon">${ORDER.find(x => x[0] === t)[2]}</span><h2>${esc(ORDER.find(x => x[0] === t)[1])}</h2></div><span>${items.length}</span></div><div class="global-search-results-grid">${items.slice(0, 12).map(x => card(t, x)).join('')}</div></section>`).join('') : (!loading ? '<div class="global-search-empty card"><div class="global-search-empty-icon">⌕</div><h2>No results found</h2><p>Try another title, subject, username, or keyword.</p></div>' : '')}</div>`;
+    e.content.innerHTML = `<div class="global-search-page"><div class="global-search-page-header"><div><div class="global-search-eyebrow">EcE HUB SEARCH</div><h1>Search results</h1><p>${loading ? 'Searching…' : `${count} result${count === 1 ? '' : 's'} for`} <strong>“${esc(q)}”</strong></p></div></div><div class="global-search-filters" role="tablist"><button type="button" class="active" data-search-filter="all">All</button><button type="button" data-search-filter="books">Books</button><button type="button" data-search-filter="flashcards">Flashcards</button><button type="button" data-search-filter="users">People</button><button type="button" data-search-filter="notes">Notes</button><button type="button" data-search-filter="quizzes">Quizzes</button></div>${gs.length ? gs.map(([t, items]) => `<section class="global-search-section" data-search-section="${t}"><div class="global-search-section-head"><div><span class="global-search-section-icon">${ORDER.find(x => x[0] === t)[2]}</span><h2>${esc(ORDER.find(x => x[0] === t)[1])}</h2></div><span>${items.length}</span></div><div class="global-search-results-grid">${items.slice(0, 12).map(x => card(t, x)).join('')}</div></section>`).join('') : (!loading ? '<div class="global-search-empty card"><div class="global-search-empty-icon">⌕</div><h2>No results found</h2><p>Try another title, subject, username, or keyword.</p></div>' : '')}</div>`;
     installFilters(e.content);
   }
 
@@ -239,10 +237,13 @@
     state.query = '';
     state.request += 1;
     clearTimeout(state.timer);
-    e.input.value = '';
-    e.clear.hidden = true;
-    e.panel.hidden = true;
-    e.panel.innerHTML = '';
+    if (e.input) e.input.value = '';
+    if (e.panel) {
+      e.panel.hidden = true;
+      e.panel.innerHTML = '';
+    }
+    const pageClear = document.querySelector('[data-search-clear-page]');
+    if (pageClear) pageClear.hidden = true;
     if (isHome() && typeof globalThis.render === 'function') globalThis.render();
   }
 
@@ -251,7 +252,6 @@
     const requestId = ++state.request;
     state.query = q;
     if (!q || !searchVisible()) { if (!q) clear(e); return; }
-    e.clear.hidden = false;
     e.panel.hidden = false;
     e.panel.innerHTML = '<div class="global-search-status">Searching EcE Hub…</div>';
 
@@ -280,10 +280,6 @@
     });
     e.input.addEventListener('focus', () => {
       if (e.input.value.trim() && searchVisible()) search(e, e.input.value);
-    });
-    e.clear.addEventListener('click', () => clear(e));
-    document.addEventListener('click', event => {
-      if (event.target.closest('[data-search-clear-page]')) { event.preventDefault(); clear(e); }
     });
 
     const nav = document.getElementById('sidebarScroll');

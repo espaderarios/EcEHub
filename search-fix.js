@@ -22,8 +22,8 @@
     return {
       input: document.getElementById('globalSearch'),
       panel: document.getElementById('searchResults'),
-      clear: document.getElementById('searchClear'),
-      content: document.getElementById('content')
+      content: document.getElementById('content'),
+      clear: document.querySelector('[data-search-clear-page]')
     };
   }
 
@@ -237,15 +237,27 @@
     const count=groups.reduce((n,[,xs])=>n+xs.length,0);
     els.panel.innerHTML=groups.length?`<div class="global-search-dropdown-head"><span>Results for “${esc(q)}”</span><span>Live</span></div>${groups.slice(0,5).map(([t,xs])=>`<div class="global-search-group"><div class="global-search-group-title">${esc(order.find(o=>o[0]===t)[1])}</div>${xs.slice(0,4).map(x=>row(t,x)).join('')}</div>`).join('')}`:`<div class="global-search-status">${loading?'Searching EcE Hub…':`No results for <strong>${esc(q)}</strong>`}</div>`;
     els.panel.hidden=false;
-    els.content.innerHTML=`<div class="global-search-page"><div class="global-search-page-header"><div><div class="global-search-eyebrow">EcE HUB SEARCH</div><h1>Search results</h1><p>${loading?'Searching…':`${count} result${count===1?'':'s'} for`} <strong>“${esc(q)}”</strong></p></div><button type="button" class="btn" data-search-clear-page>Clear search</button></div><div class="global-search-filters" role="tablist"><button type="button" class="active" data-search-filter="all">All</button><button type="button" data-search-filter="books">Books</button><button type="button" data-search-filter="flashcards">Flashcards</button><button type="button" data-search-filter="users">People</button><button type="button" data-search-filter="notes">Notes</button><button type="button" data-search-filter="quizzes">Quizzes</button></div>${groups.map(([t,xs])=>`<section class="global-search-section" data-search-section="${t}"><div class="global-search-section-head"><div><span class="global-search-section-icon">${ico[t]}</span><h2>${esc(order.find(o=>o[0]===t)[1])}</h2></div><span>${xs.length}</span></div><div class="global-search-results-grid">${xs.slice(0,12).map(x=>card(t,x)).join('')}</div></section>`).join('')}${!groups.length&&!loading?'<div class="global-search-empty card"><div class="global-search-empty-icon">⌕</div><h2>No results found</h2><p>Try another title, subject, username, or keyword.</p></div>':''}</div>`;
+    els.content.innerHTML=`<div class="global-search-page"><div class="global-search-page-header"><div><div class="global-search-eyebrow">EcE HUB SEARCH</div><h1>Search results</h1><p>${loading?'Searching…':`${count} result${count===1?'':'s'} for`} <strong>“${esc(q)}”</strong></p></div></div><div class="global-search-filters" role="tablist"><button type="button" class="active" data-search-filter="all">All</button><button type="button" data-search-filter="books">Books</button><button type="button" data-search-filter="flashcards">Flashcards</button><button type="button" data-search-filter="users">People</button><button type="button" data-search-filter="notes">Notes</button><button type="button" data-search-filter="quizzes">Quizzes</button></div>${groups.map(([t,xs])=>`<section class="global-search-section" data-search-section="${t}"><div class="global-search-section-head"><div><span class="global-search-section-icon">${ico[t]}</span><h2>${esc(order.find(o=>o[0]===t)[1])}</h2></div><span>${xs.length}</span></div><div class="global-search-results-grid">${xs.slice(0,12).map(x=>card(t,x)).join('')}</div></section>`).join('')}${!groups.length&&!loading?'<div class="global-search-empty card"><div class="global-search-empty-icon">⌕</div><h2>No results found</h2><p>Try another title, subject, username, or keyword.</p></div>':''}</div>`;
   }
 
-  function clear(els){state.q='';state.request++;els.input.value='';els.clear.hidden=true;els.panel.hidden=true;els.panel.innerHTML='';if(home()&&typeof globalThis.render==='function')globalThis.render();}
+  function clear(els){
+    state.q='';
+    state.request++;
+    if (els.input) els.input.value = '';
+    const pageClear = els.clear || document.querySelector('[data-search-clear-page]');
+    if (pageClear) pageClear.hidden = true;
+    if (els.panel) {
+      els.panel.hidden = true;
+      els.panel.innerHTML = '';
+    }
+    if (home() && typeof globalThis.render === 'function') globalThis.render();
+  }
 
   async function search(els,value){
     const q=n(value), id=++state.request; state.q=q;
     if(!q){clear(els);return;}
-    els.clear.hidden=false;
+    const pageClear = els.clear || document.querySelector('[data-search-clear-page]');
+    if (pageClear) pageClear.hidden = false;
 
     /* The public Library catalog is an independent search source.
        Do not depend on app.js's internal data.books timing or scope. */

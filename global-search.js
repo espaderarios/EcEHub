@@ -2,7 +2,6 @@
 (function installGlobalLiveSearch() {
   const input = document.getElementById('globalSearch');
   const panel = document.getElementById('searchResults');
-  const clearButton = document.getElementById('searchClear');
   const content = document.getElementById('content');
 
   if (!input || !panel || !content) return;
@@ -389,7 +388,8 @@
     clearTimeout(state.timer);
     if (state.controller) state.controller.abort();
 
-    if (clearButton) clearButton.hidden = !query;
+    const pageClearButton = document.querySelector('[data-search-clear-page]');
+    if (pageClearButton) pageClearButton.hidden = !query;
 
     if (!query) {
       state.community = { users: [], flashcards: [] };
@@ -431,13 +431,6 @@
       if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
     }
   }, true);
-
-  clearButton?.addEventListener('click', event => {
-    event.preventDefault();
-    input.value = '';
-    runSearch('');
-    input.focus();
-  });
 
   panel.addEventListener('click', event => {
     const book = event.target.closest('[data-search-open-book]');

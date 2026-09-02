@@ -1,4 +1,7 @@
-/* Calendar labels for the Home study streak */
+/* =========================================================
+   Home — Study Streak Week
+   ========================================================= */
+
 .home-week {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -10,48 +13,102 @@
   min-width: 0;
   min-height: 48px;
   padding: 6px 3px;
-  border: 1px solid var(--border, rgba(255,255,255,.12));
+  border: 1px solid var(--line);
   border-radius: 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
-  opacity: .55;
+  opacity: 0.55;
   font-size: 11px;
-  transition: .18s ease;
+  background: var(--card);
+  color: var(--muted);
+  transition:
+    opacity 0.16s var(--ease),
+    border-color 0.16s var(--ease),
+    background 0.16s var(--ease),
+    box-shadow 0.16s var(--ease);
 }
 
 .home-week > span b {
   font-size: 10px;
   font-weight: 700;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
+  line-height: 1;
 }
 
 .home-week > span small {
   font-size: 13px;
   font-weight: 700;
+  color: var(--text);
+  line-height: 1;
 }
+
+/* Active day (studied) */
 
 .home-week > span.is-active {
   opacity: 1;
-  border-color: rgba(124, 92, 255, .7);
-  background: rgba(124, 92, 255, .16);
+  border-color: rgba(79, 70, 229, 0.55);
+  background: var(--purple-soft);
+  color: var(--purple);
 }
 
+.home-week > span.is-active small {
+  color: var(--purple);
+}
+
+/* Today */
+
 .home-week > span.is-today {
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.18);
+  opacity: 1;
+  box-shadow: inset 0 0 0 1.5px rgba(79, 70, 229, 0.35);
 }
 
 .home-week > span.is-today b::after {
-  content: ' · today';
+  content: " · today";
   text-transform: none;
   font-weight: 600;
-  opacity: .8;
+  letter-spacing: 0;
+  opacity: 0.75;
+  font-size: 9px;
 }
 
+/* Dark mode */
+
+.dark .home-week > span {
+  background: var(--card);
+  border-color: var(--line);
+}
+
+.dark .home-week > span.is-active {
+  background: #1e1b4b;
+  border-color: rgba(99, 102, 241, 0.55);
+  color: #a5b4fc;
+}
+
+.dark .home-week > span.is-active small {
+  color: #a5b4fc;
+}
+
+.dark .home-week > span.is-today {
+  box-shadow: inset 0 0 0 1.5px rgba(99, 102, 241, 0.45);
+}
+
+/* Mobile */
+
 @media (max-width: 560px) {
-  .home-week { gap: 4px; }
-  .home-week > span { min-height: 44px; padding: 5px 2px; }
-  .home-week > span.is-today b::after { content: ''; }
+  .home-week {
+    gap: 4px;
+  }
+
+  .home-week > span {
+    min-height: 44px;
+    padding: 5px 2px;
+  }
+
+  .home-week > span.is-today b::after {
+    content: "";
+  }
 }
