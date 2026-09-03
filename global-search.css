@@ -419,6 +419,7 @@
 
   .search-results {
     min-width: min(520px, calc(100vw - 30px));
+    margin-top: 3rem;
   }
 }
 

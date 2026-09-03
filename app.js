@@ -888,6 +888,8 @@ function render() {
       window.ExploreGames.circuitChallengeView(),
     'explore-crossword': () =>
       window.ExploreGames.electronicsCrosswordView(),
+    'explore-logic-gates': () =>
+      (window.ExploreGames.logicGatesLabView || window.ExploreGames.logicGateLabView || (() => '<div id="logic-gates-root"></div>'))(),
 
     quizzes: quizzesView,
     tools: toolsView,
@@ -1913,7 +1915,7 @@ function exploreView() {
 
 
           <!-- Logic Gates -->
-          <article class="explore-game-card explore-game-disabled">
+          <article class="explore-game-card">
 
             <div class="explore-card-icon">
               🧠
@@ -1937,8 +1939,15 @@ function exploreView() {
               <div class="explore-card-footer">
 
                 <span>
-                  Coming soon
+                  Interactive circuit lab
                 </span>
+
+                <button
+                  type="button"
+                  class="btn primary"
+                  data-action="open-logic-gates">
+                  Play
+                </button>
 
               </div>
 
@@ -5236,6 +5245,15 @@ function action(a, id, index, el) {
 
    if (a === 'open-circuit-challenge') {
     window.ExploreGames.startCircuitChallenge();
+    return;
+  }
+
+  if (a === 'open-logic-gates') {
+    if (window.ExploreGames.startLogicGatesLab) {
+      window.ExploreGames.startLogicGatesLab();
+    } else if (window.startLogicGatesLab) {
+      window.startLogicGatesLab();
+    }
     return;
   }
 
