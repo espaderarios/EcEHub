@@ -6,7 +6,7 @@
 const appState = {
   currentView: 'LEVEL_SELECT', // 'EXPLORE' | 'LEVEL_SELECT' | 'GAME'
   currentLevelIndex: 0,
-  levelProgress: { lg_01: false, lg_02: false },
+  levelProgress: {},
   nodes: [],
   connections: [],
   isDragging: false,
@@ -17,6 +17,19 @@ const appState = {
 };
 
 // Level Blueprint Definitions
+function buildTruthTable(inputIds, evaluate) {
+  const truthTable = [];
+  const combinations = 2 ** inputIds.length;
+
+  for (let mask = 0; mask < combinations; mask++) {
+    const values = inputIds.map((_, index) => Boolean(mask & (1 << index)));
+    const inputStates = Object.fromEntries(inputIds.map((id, index) => [id, values[index]]));
+    truthTable.push({ inputStates, expectedOutput: { out_1: evaluate(...values) } });
+  }
+
+  return truthTable;
+}
+
 const LOGIC_GATES_LEVELS = [
   {
     id: 'lg_01',
@@ -48,6 +61,306 @@ const LOGIC_GATES_LEVELS = [
       { inputStates: { in_1: false, in_2: true  }, expectedOutput: { out_1: false } },
       { inputStates: { in_1: true,  in_2: true  }, expectedOutput: { out_1: true } }
     ]
+  },
+  {
+    id: 'lg_03',
+    title: 'LEVEL 3: OR GATE MERGE',
+    difficulty: 'Beginner',
+    description: 'Activate the output when either switch is HIGH.',
+    availableGates: ['OR', 'AND', 'NOT'],
+    inputs: [{ id: 'in_1', label: 'Switch A', defaultState: false }, { id: 'in_2', label: 'Switch B', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Main Bus OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2'], (a, b) => a || b)
+  },
+  {
+    id: 'lg_04',
+    title: 'LEVEL 4: NAND SAFETY INTERLOCK',
+    difficulty: 'Intermediate',
+    description: 'Keep the output HIGH unless both switches are HIGH.',
+    availableGates: ['NAND', 'AND', 'NOT'],
+    inputs: [{ id: 'in_1', label: 'Switch A', defaultState: false }, { id: 'in_2', label: 'Switch B', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Safety OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2'], (a, b) => !(a && b))
+  },
+  {
+    id: 'lg_05',
+    title: 'LEVEL 5: NOR QUIET STATE',
+    difficulty: 'Intermediate',
+    description: 'Activate the output only while both switches are LOW.',
+    availableGates: ['NOR', 'OR', 'NOT'],
+    inputs: [{ id: 'in_1', label: 'Switch A', defaultState: false }, { id: 'in_2', label: 'Switch B', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Quiet OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2'], (a, b) => !(a || b))
+  },
+  {
+    id: 'lg_06',
+    title: 'LEVEL 6: XOR DIFFERENCE FLAG',
+    difficulty: 'Intermediate',
+    description: 'Activate the output when exactly one switch is HIGH.',
+    availableGates: ['XOR', 'OR', 'AND', 'NOT'],
+    inputs: [{ id: 'in_1', label: 'Switch A', defaultState: false }, { id: 'in_2', label: 'Switch B', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Difference OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2'], (a, b) => a !== b)
+  },
+  {
+    id: 'lg_07',
+    title: 'LEVEL 7: INVERTED AND',
+    difficulty: 'Intermediate',
+    description: 'Invert the result of an AND operation before sending it to the output.',
+    availableGates: ['AND', 'NOT', 'NAND'],
+    inputs: [{ id: 'in_1', label: 'Input A', defaultState: false }, { id: 'in_2', label: 'Input B', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Inverted OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2'], (a, b) => !(a && b))
+  },
+  {
+    id: 'lg_08',
+    title: 'LEVEL 8: INVERTED OR',
+    difficulty: 'Intermediate',
+    description: 'Invert the result of an OR operation before sending it to the output.',
+    availableGates: ['OR', 'NOT', 'NOR'],
+    inputs: [{ id: 'in_1', label: 'Input A', defaultState: false }, { id: 'in_2', label: 'Input B', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Inverted OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2'], (a, b) => !(a || b))
+  },
+  {
+    id: 'lg_09',
+    title: 'LEVEL 9: THREE-SWITCH AND',
+    difficulty: 'Advanced',
+    description: 'Activate the output only when all three switches are HIGH.',
+    availableGates: ['AND', 'OR', 'NOT'],
+    inputs: [{ id: 'in_1', label: 'Switch A', defaultState: false }, { id: 'in_2', label: 'Switch B', defaultState: false }, { id: 'in_3', label: 'Switch C', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Three-Way OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2', 'in_3'], (a, b, c) => a && b && c)
+  },
+  {
+    id: 'lg_10',
+    title: 'LEVEL 10: THREE-SWITCH OR',
+    difficulty: 'Advanced',
+    description: 'Activate the output when any one of three switches is HIGH.',
+    availableGates: ['OR', 'AND', 'NOT'],
+    inputs: [{ id: 'in_1', label: 'Switch A', defaultState: false }, { id: 'in_2', label: 'Switch B', defaultState: false }, { id: 'in_3', label: 'Switch C', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Any-Input OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2', 'in_3'], (a, b, c) => a || b || c)
+  },
+  {
+    id: 'lg_11',
+    title: 'LEVEL 11: ODD PARITY CHECK',
+    difficulty: 'Advanced',
+    description: 'Activate the output when an odd number of the three inputs is HIGH.',
+    availableGates: ['XOR', 'AND', 'OR', 'NOT'],
+    inputs: [{ id: 'in_1', label: 'Bit A', defaultState: false }, { id: 'in_2', label: 'Bit B', defaultState: false }, { id: 'in_3', label: 'Bit C', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Parity OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2', 'in_3'], (a, b, c) => [a, b, c].filter(Boolean).length % 2 === 1)
+  },
+  {
+    id: 'lg_12',
+    title: 'LEVEL 12: A AND NOT B',
+    difficulty: 'Advanced',
+    description: 'Activate the output only when A is HIGH and B is LOW.',
+    availableGates: ['AND', 'NOT', 'OR', 'NAND'],
+    inputs: [{ id: 'in_1', label: 'Enable A', defaultState: false }, { id: 'in_2', label: 'Block B', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Qualified OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2'], (a, b) => a && !b)
+  },
+  {
+    id: 'lg_13',
+    title: 'LEVEL 13: EQUIVALENCE CHECK',
+    difficulty: 'Advanced',
+    description: 'Activate the output when both inputs have the same state.',
+    availableGates: ['XOR', 'NOT', 'AND', 'OR'],
+    inputs: [{ id: 'in_1', label: 'Input A', defaultState: false }, { id: 'in_2', label: 'Input B', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Match OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2'], (a, b) => !(a !== b))
+  },
+  {
+    id: 'lg_14',
+    title: 'LEVEL 14: B AND NOT A',
+    difficulty: 'Advanced',
+    description: 'Activate the output only when B is HIGH and A is LOW.',
+    availableGates: ['AND', 'NOT', 'OR', 'NAND'],
+    inputs: [{ id: 'in_1', label: 'Block A', defaultState: false }, { id: 'in_2', label: 'Enable B', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Reverse OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2'], (a, b) => !a && b)
+  },
+  {
+    id: 'lg_15',
+    title: 'LEVEL 15: A OR NOT B',
+    difficulty: 'Advanced',
+    description: 'Activate the output when A is HIGH or B is LOW.',
+    availableGates: ['OR', 'NOT', 'AND', 'NOR'],
+    inputs: [{ id: 'in_1', label: 'Signal A', defaultState: false }, { id: 'in_2', label: 'Signal B', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Condition OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2'], (a, b) => a || !b)
+  },
+  {
+    id: 'lg_16',
+    title: 'LEVEL 16: THREE-WAY NOR',
+    difficulty: 'Advanced',
+    description: 'Activate the output only when all three inputs are LOW.',
+    availableGates: ['NOR', 'OR', 'NOT', 'AND'],
+    inputs: [{ id: 'in_1', label: 'Input A', defaultState: false }, { id: 'in_2', label: 'Input B', defaultState: false }, { id: 'in_3', label: 'Input C', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'All-Clear OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2', 'in_3'], (a, b, c) => !(a || b || c))
+  },
+  {
+    id: 'lg_17',
+    title: 'LEVEL 17: A OR B AND C',
+    difficulty: 'Expert',
+    description: 'Activate the output when A is HIGH, or when both B and C are HIGH.',
+    availableGates: ['AND', 'OR', 'NOT', 'NAND'],
+    inputs: [{ id: 'in_1', label: 'Priority A', defaultState: false }, { id: 'in_2', label: 'Pair B', defaultState: false }, { id: 'in_3', label: 'Pair C', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Priority OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2', 'in_3'], (a, b, c) => a || (b && c))
+  },
+  {
+    id: 'lg_18',
+    title: 'LEVEL 18: SHARED ENABLE',
+    difficulty: 'Expert',
+    description: 'Activate the output when C is HIGH and either A or B is HIGH.',
+    availableGates: ['AND', 'OR', 'NOT', 'NAND'],
+    inputs: [{ id: 'in_1', label: 'Request A', defaultState: false }, { id: 'in_2', label: 'Request B', defaultState: false }, { id: 'in_3', label: 'Enable C', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Enabled OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2', 'in_3'], (a, b, c) => (a || b) && c)
+  },
+  {
+    id: 'lg_19',
+    title: 'LEVEL 19: MAJORITY VOTE',
+    difficulty: 'Expert',
+    description: 'Activate the output when at least two of the three inputs are HIGH.',
+    availableGates: ['AND', 'OR', 'XOR', 'NOT'],
+    inputs: [{ id: 'in_1', label: 'Vote A', defaultState: false }, { id: 'in_2', label: 'Vote B', defaultState: false }, { id: 'in_3', label: 'Vote C', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Majority OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2', 'in_3'], (a, b, c) => (a && b) || (a && c) || (b && c))
+  },
+  {
+    id: 'lg_20',
+    title: 'LEVEL 20: EXACTLY TWO HIGH',
+    difficulty: 'Expert',
+    description: 'Activate the output when exactly two of the three inputs are HIGH.',
+    availableGates: ['AND', 'OR', 'XOR', 'NOT'],
+    inputs: [{ id: 'in_1', label: 'Bit A', defaultState: false }, { id: 'in_2', label: 'Bit B', defaultState: false }, { id: 'in_3', label: 'Bit C', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Two-Bit OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2', 'in_3'], (a, b, c) => [a, b, c].filter(Boolean).length === 2)
+  },
+  {
+    id: 'lg_21',
+    title: 'LEVEL 21: ONE-HOT DETECTOR',
+    difficulty: 'Expert',
+    description: 'Activate the output when exactly one of the three inputs is HIGH.',
+    availableGates: ['AND', 'OR', 'XOR', 'NOT'],
+    inputs: [{ id: 'in_1', label: 'Channel A', defaultState: false }, { id: 'in_2', label: 'Channel B', defaultState: false }, { id: 'in_3', label: 'Channel C', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'One-Hot OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2', 'in_3'], (a, b, c) => [a, b, c].filter(Boolean).length === 1)
+  },
+  {
+    id: 'lg_22',
+    title: 'LEVEL 22: EVEN PARITY',
+    difficulty: 'Expert',
+    description: 'Activate the output when zero or two inputs are HIGH.',
+    availableGates: ['XOR', 'NOT', 'AND', 'OR'],
+    inputs: [{ id: 'in_1', label: 'Bit A', defaultState: false }, { id: 'in_2', label: 'Bit B', defaultState: false }, { id: 'in_3', label: 'Bit C', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Even OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2', 'in_3'], (a, b, c) => [a, b, c].filter(Boolean).length % 2 === 0)
+  },
+  {
+    id: 'lg_23',
+    title: 'LEVEL 23: SIGNAL IMPLIES ENABLE',
+    difficulty: 'Expert',
+    description: 'Activate the output unless A is HIGH while B is LOW.',
+    availableGates: ['OR', 'NOT', 'AND', 'NAND'],
+    inputs: [{ id: 'in_1', label: 'Signal A', defaultState: false }, { id: 'in_2', label: 'Enable B', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Guard OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2'], (a, b) => !a || b)
+  },
+  {
+    id: 'lg_24',
+    title: 'LEVEL 24: TWO-INPUT XNOR',
+    difficulty: 'Expert',
+    description: 'Activate the output when both inputs are LOW or both are HIGH.',
+    availableGates: ['XOR', 'NOT', 'AND', 'OR'],
+    inputs: [{ id: 'in_1', label: 'Compare A', defaultState: false }, { id: 'in_2', label: 'Compare B', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Equal OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2'], (a, b) => a === b)
+  },
+  {
+    id: 'lg_25',
+    title: 'LEVEL 25: THREE-INPUT NAND',
+    difficulty: 'Expert',
+    description: 'Keep the output HIGH unless all three inputs are HIGH.',
+    availableGates: ['AND', 'NOT', 'NAND', 'OR'],
+    inputs: [{ id: 'in_1', label: 'Input A', defaultState: false }, { id: 'in_2', label: 'Input B', defaultState: false }, { id: 'in_3', label: 'Input C', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'NAND OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2', 'in_3'], (a, b, c) => !(a && b && c))
+  },
+  {
+    id: 'lg_26',
+    title: 'LEVEL 26: SELECTOR A',
+    difficulty: 'Expert',
+    description: 'When select A is HIGH, pass signal B; otherwise pass signal C.',
+    availableGates: ['AND', 'OR', 'NOT', 'NAND'],
+    inputs: [{ id: 'in_1', label: 'Select A', defaultState: false }, { id: 'in_2', label: 'Signal B', defaultState: false }, { id: 'in_3', label: 'Signal C', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Mux OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2', 'in_3'], (a, b, c) => (a && b) || (!a && c))
+  },
+  {
+    id: 'lg_27',
+    title: 'LEVEL 27: ALARM WITH INHIBIT',
+    difficulty: 'Expert',
+    description: 'Activate the alarm when A or B is HIGH, provided inhibit C is LOW.',
+    availableGates: ['OR', 'AND', 'NOT', 'NOR'],
+    inputs: [{ id: 'in_1', label: 'Alarm A', defaultState: false }, { id: 'in_2', label: 'Alarm B', defaultState: false }, { id: 'in_3', label: 'Inhibit C', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Alarm OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2', 'in_3'], (a, b, c) => (a || b) && !c)
+  },
+  {
+    id: 'lg_28',
+    title: 'LEVEL 28: ALL-DIFFERENT FLAG',
+    difficulty: 'Expert',
+    description: 'Activate the output when the three inputs are not all equal.',
+    availableGates: ['XOR', 'AND', 'OR', 'NOT'],
+    inputs: [{ id: 'in_1', label: 'State A', defaultState: false }, { id: 'in_2', label: 'State B', defaultState: false }, { id: 'in_3', label: 'State C', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Difference OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2', 'in_3'], (a, b, c) => !(a === b && b === c))
+  },
+  {
+    id: 'lg_29',
+    title: 'LEVEL 29: ANY TWO MATCH',
+    difficulty: 'Expert',
+    description: 'Activate the output when at least two of the three inputs match.',
+    availableGates: ['XOR', 'NOT', 'AND', 'OR'],
+    inputs: [{ id: 'in_1', label: 'Compare A', defaultState: false }, { id: 'in_2', label: 'Compare B', defaultState: false }, { id: 'in_3', label: 'Compare C', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Match OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2', 'in_3'], (a, b, c) => a === b || a === c || b === c)
+  },
+  {
+    id: 'lg_30',
+    title: 'LEVEL 30: FINAL CONSENSUS',
+    difficulty: 'Expert',
+    description: 'Activate the output when all inputs agree and are HIGH.',
+    availableGates: ['AND', 'OR', 'NOT', 'NAND'],
+    inputs: [{ id: 'in_1', label: 'Line A', defaultState: false }, { id: 'in_2', label: 'Line B', defaultState: false }, { id: 'in_3', label: 'Line C', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Consensus OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2', 'in_3'], (a, b, c) => a && b && c)
+  },
+  {
+    id: 'lg_31',
+    title: 'LEVEL 31: PRIORITY OVERRIDE',
+    difficulty: 'Expert',
+    description: 'Activate the output when A is HIGH, or when B and C are both HIGH.',
+    availableGates: ['OR', 'AND', 'NOT', 'NAND'],
+    inputs: [{ id: 'in_1', label: 'Priority A', defaultState: false }, { id: 'in_2', label: 'Backup B', defaultState: false }, { id: 'in_3', label: 'Backup C', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Override OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2', 'in_3'], (a, b, c) => a || (b && c))
+  },
+  {
+    id: 'lg_32',
+    title: 'LEVEL 32: FINAL PARITY LOCK',
+    difficulty: 'Expert',
+    description: 'Activate the output when an odd number of input lines are HIGH.',
+    availableGates: ['XOR', 'NOT', 'AND', 'OR'],
+    inputs: [{ id: 'in_1', label: 'Line A', defaultState: false }, { id: 'in_2', label: 'Line B', defaultState: false }, { id: 'in_3', label: 'Line C', defaultState: false }],
+    outputs: [{ id: 'out_1', label: 'Parity OUT' }],
+    truthTable: buildTruthTable(['in_1', 'in_2', 'in_3'], (a, b, c) => [a, b, c].filter(Boolean).length % 2 === 1)
   }
 ];
 
@@ -57,8 +370,32 @@ const GATE_TYPES = {
   NOT:  { id: 'NOT',  inputs: 1, fn: (a) => !a,         symbol: '1' },
   NAND: { id: 'NAND', inputs: 2, fn: (a, b) => !(a&&b), symbol: '&̄' },
   NOR:  { id: 'NOR',  inputs: 2, fn: (a, b) => !(a||b), symbol: '≥1̄' },
-  XOR:  { id: 'XOR',  inputs: 2, fn: (a, b) => a !== b, symbol: '=1' }
+  XOR:  { id: 'XOR',  inputs: 2, fn: (a, b) => a !== b,  symbol: '=1' },
+  NXOR: { id: 'NXOR', inputs: 2, fn: (a, b) => a === b,  symbol: '=0' }
 };
+
+const ALL_GATE_TYPES = ['AND', 'NAND', 'NOR', 'NOT', 'NXOR', 'OR', 'XOR'];
+
+const GATE_SYMBOL_ASSETS = {
+  AND: 'logicgatessvg/logic-gate-and-svgrepo-com.svg',
+  NAND: 'logicgatessvg/logic-gate-nand-svgrepo-com.svg',
+  NOR: 'logicgatessvg/logic-gate-nor-svgrepo-com.svg',
+  NOT: 'logicgatessvg/logic-gate-not-svgrepo-com.svg',
+  NXOR: 'logicgatessvg/logic-gate-nxor-svgrepo-com.svg',
+  OR: 'logicgatessvg/logic-gate-or-svgrepo-com.svg',
+  XOR: 'logicgatessvg/logic-gate-xor-svgrepo-com.svg'
+};
+
+LOGIC_GATES_LEVELS.forEach(level => {
+  level.availableGates = [...ALL_GATE_TYPES];
+});
+
+function gateSymbolImage(gateType) {
+  const assetPath = GATE_SYMBOL_ASSETS[gateType];
+  return assetPath
+    ? `<img class="lg-gate-image" src="${assetPath}" alt="${gateType} gate">`
+    : GATE_TYPES[gateType].symbol;
+}
 
 // Main Entry Point
 function mountLogicGatesLab(containerId) {
@@ -184,7 +521,7 @@ function renderGameCanvasScreen(container) {
 
         <div class="lg-level-info">
           <div class="lg-category-label">OBJECTIVE</div>
-          <p id="lg-level-desc" style="font-size:10px; color:#a0acba;">Loading...</p>
+          <p id="lg-level-desc">Loading...</p>
           <div id="lg-completion-status" class="status-tag pending">STATUS: PENDING</div>
         </div>
       </aside>
@@ -283,6 +620,8 @@ function loadLogicGatesLevel(levelIdx) {
 
   appState.nodes = [];
   appState.connections = [];
+  const nodeLayer = document.getElementById('lg-node-layer');
+  if (nodeLayer) nodeLayer.innerHTML = '';
 
   document.getElementById('lg-level-title').textContent = level.title;
   document.getElementById('lg-level-desc').textContent = level.description;
@@ -300,7 +639,7 @@ function loadLogicGatesLevel(levelIdx) {
       const item = document.createElement('div');
       item.className = 'lg-ic-chip-item';
       item.setAttribute('draggable', 'true');
-      item.innerHTML = `<div class="lg-ic-symbol">${GATE_TYPES[gateType].symbol}</div><div class="lg-ic-name">${gateType}</div>`;
+      item.innerHTML = `<div class="lg-ic-symbol">${gateSymbolImage(gateType)}</div><div class="lg-ic-name">${gateType}</div>`;
 
       item.addEventListener('dragstart', (e) => {
         e.dataTransfer.setData('gateType', gateType);
@@ -333,12 +672,14 @@ function loadLogicGatesLevel(levelIdx) {
   });
 
   // Spawn Level Outputs
+  const viewport = document.getElementById('lg-viewport');
+  const outputX = Math.max(300, (viewport ? viewport.clientWidth : 600) - 120);
   level.outputs.forEach((outSpec, idx) => {
     createNodeOnCanvas({
       id: outSpec.id,
       type: 'OUTPUT',
       label: outSpec.label,
-      x: 520,
+      x: outputX,
       y: 60 + idx * 110,
       outputState: false,
       inputPins: [0],
@@ -346,7 +687,6 @@ function loadLogicGatesLevel(levelIdx) {
     });
   });
 
-  const viewport = document.getElementById('lg-viewport');
   viewport.ondragover = (e) => e.preventDefault();
   viewport.ondrop = (e) => {
     e.preventDefault();
@@ -387,7 +727,7 @@ function renderNodeDOM(node) {
   nodeEl.style.left = `${node.x}px`;
   nodeEl.style.top = `${node.y}px`;
 
-  const symbol = GATE_TYPES[node.type] ? GATE_TYPES[node.type].symbol : node.label;
+  const symbol = GATE_TYPES[node.type] ? gateSymbolImage(node.type) : node.label;
 
   nodeEl.innerHTML = `
     <div class="lg-ic-header">
@@ -419,13 +759,15 @@ function renderNodeDOM(node) {
     if (e.target.classList.contains('lg-pin')) return;
     appState.isDragging = true;
     appState.draggedNode = node;
-    let shiftX = e.clientX - node.x;
-    let shiftY = e.clientY - node.y;
+    const viewport = document.getElementById('lg-viewport');
+    const rect = viewport.getBoundingClientRect();
+    let shiftX = e.clientX - rect.left - node.x;
+    let shiftY = e.clientY - rect.top - node.y;
 
     function onMouseMove(e) {
       if (appState.isDragging) {
-        node.x = e.clientX - shiftX;
-        node.y = e.clientY - shiftY;
+        node.x = e.clientX - rect.left - shiftX;
+        node.y = e.clientY - rect.top - shiftY;
         nodeEl.style.left = `${node.x}px`;
         nodeEl.style.top = `${node.y}px`;
         renderWires();
@@ -807,9 +1149,9 @@ function injectLogicGatesStyles() {
     }
     .lg-btn-hero:hover { box-shadow: 0 0 12px rgba(0,255,102,0.4); transform: translateY(-1px); }
 
-    .lg-menu-screen { padding: 20px; display: flex; flex-direction: column; gap: 20px; height: 100%; }
+    .lg-menu-screen { padding: 20px; display: flex; flex-direction: column; gap: 20px; height: 100%; min-height: 0; box-sizing: border-box; }
     .lg-menu-navbar { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a313d; padding-bottom: 10px; }
-    .lg-levels-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+    .lg-levels-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; flex: 1 1 auto; min-height: 0; overflow-y: auto; align-content: start; padding: 2px 8px 12px 0; }
     .lg-level-card {
       background: #181c23;
       border: 1px solid #2a313d;
@@ -848,7 +1190,7 @@ function injectLogicGatesStyles() {
     .lg-workbench { display: grid; grid-template-columns: 200px 1fr 280px; flex: 1; overflow: hidden; }
 
     /* Left Sidebar */
-    .lg-sidebar { background: #181c23; border-right: 1px solid #2a313d; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; }
+    .lg-sidebar { background: #181c23; border-right: 1px solid #2a313d; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; overflow-y: auto; }
     .lg-sidebar-title { color: #fff; font-size: 11px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #2a313d; padding-bottom: 4px; margin-bottom: 8px; }
     .lg-help-text { font-size: 9px; color: #6e7c91; margin-bottom: 8px; }
     .lg-category-label { font-size: 9px; font-weight: bold; color: #fff; margin-bottom: 6px; }
@@ -862,8 +1204,11 @@ function injectLogicGatesStyles() {
       cursor: grab;
     }
     .lg-ic-chip-item:hover { border-color: #00ff66; }
-    .lg-ic-symbol { font-weight: bold; color: #00ff66; font-size: 11px; }
+    .lg-ic-symbol { display: flex; align-items: center; justify-content: center; min-height: 30px; color: #00ff66; }
+    .lg-gate-image { display: block; width: 48px; height: 30px; object-fit: contain; filter: brightness(0) saturate(100%) invert(72%) sepia(96%) saturate(1375%) hue-rotate(83deg) brightness(105%) contrast(110%); }
     .lg-ic-name { font-size: 8px; color: #d0d7e2; }
+    .lg-level-info { flex: 0 0 auto; padding-top: 18px; }
+    .lg-level-info p { margin: 8px 0 12px; color: #d0d7e2; font-size: 13px; line-height: 1.45; }
 
     /* Center Breadboard Canvas */
     .lg-canvas-viewport {
@@ -926,7 +1271,7 @@ function injectLogicGatesStyles() {
     }
     .lg-val-badge { color: #00ff66; font-size: 8px; }
     .lg-ic-body { display: flex; justify-content: space-between; align-items: center; padding: 8px 4px; }
-    .lg-ic-center-core { font-size: 14px; font-weight: bold; color: #00ff66; font-family: monospace; }
+    .lg-ic-center-core { display: flex; align-items: center; justify-content: center; width: 52px; min-height: 30px; color: #00ff66; font-family: monospace; }
     .lg-ic-pins-left, .lg-ic-pins-right { display: flex; flex-direction: column; gap: 6px; }
     .lg-pin { width: 9px; height: 9px; border-radius: 2px; background: #48566b; cursor: pointer; }
     .lg-pin:hover { background: #00ff66; }
