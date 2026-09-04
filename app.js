@@ -890,6 +890,8 @@ function render() {
       window.ExploreGames.electronicsCrosswordView(),
     'explore-logic-gates': () =>
       (window.ExploreGames.logicGatesLabView || window.ExploreGames.logicGateLabView || (() => '<div id="logic-gates-root"></div>'))(),
+    'explore-circuit-simulator': () =>
+      window.ExploreGames.circuitSimulatorView(),
 
     quizzes: quizzesView,
     tools: toolsView,
@@ -916,6 +918,12 @@ function render() {
 
   updateChrome();
   updateSearchVisibility();
+
+  if (route === 'explore-circuit-simulator') {
+      window.CircuitSimulator?.mount(
+          document.getElementById('ece-circuit-simulator-root')
+      );
+  }
 
   if (
     route === 'flashcards' &&
@@ -1957,6 +1965,23 @@ function exploreView() {
 
 
           <!-- Components -->
+          <!-- Circuit Simulator -->
+          <article class="explore-game-card">
+
+            <div class="explore-card-icon">🔌</div>
+            <div class="explore-card-body">
+              <span class="explore-card-category">SIMULATOR</span>
+              <h3>Circuit Simulator</h3>
+              <p>Build and test circuits on a virtual breadboard.</p>
+              <div class="explore-card-footer">
+                <span>Interactive 3D bench</span>
+                <button type="button" class="btn primary" data-action="open-circuit-simulator">Open</button>
+              </div>
+            </div>
+
+          </article>
+
+
           <!-- Electronics Crossword -->
           <article class="explore-game-card">
 
@@ -5245,6 +5270,11 @@ function action(a, id, index, el) {
 
    if (a === 'open-circuit-challenge') {
     window.ExploreGames.startCircuitChallenge();
+    return;
+  }
+
+  if (a === 'open-circuit-simulator') {
+    go('explore-circuit-simulator');
     return;
   }
 

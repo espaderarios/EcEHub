@@ -1422,6 +1422,14 @@ function gradeCircuitQuestion(
      HTML ESCAPING
      ============================================================ */
 
+  function circuitSimulatorView() {
+    return `
+      <section class="circuit-simulator-page">
+        <div id="ece-circuit-simulator-root"></div>
+      </section>
+    `;
+  }
+
   function escapeHtml(value) {
 
     return String(value)
@@ -1454,6 +1462,7 @@ window.ExploreGames =
 Object.assign(window.ExploreGames, {
 
   circuitChallengeView,
+  circuitSimulatorView,
 
   startCircuitChallenge,
 
