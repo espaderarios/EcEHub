@@ -39,7 +39,7 @@ export function CircuitLab() {
         <Canvas />
       ) : (
         <div className="flex h-full items-center justify-center text-sm text-paper/70">
-          Opening the bench…
+          Opening the bench???
         </div>
       )}
       <LabOverlay />

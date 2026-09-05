@@ -1,8 +1,8 @@
-import { ContactShadows, Grid, OrbitControls } from "@react-three/drei";
-import { useFrame, useThree } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { ContactShadows, Environment, Grid, OrbitControls } from "@react-three/drei";
+import { useThree } from "@react-three/fiber";
+import { useMemo } from "react";
 import * as THREE from "three";
-import { getAllHoles, holePosition } from "@/circuit/breadboard";
+import { ALL_HOLES, holePosition } from "@/circuit/breadboard";
 import { useLab } from "@/store/lab";
 import {
   BreadboardBody,
@@ -11,51 +11,21 @@ import {
   PowerSupply,
 } from "./parts-3d";
 
-function PulseMarker({
-  position,
-  color,
-  phase = 0,
-  radius = 0.07,
-}: {
-  position: [number, number, number];
-  color: string;
-  phase?: number;
-  radius?: number;
-}) {
-  const ring = useRef<THREE.Mesh>(null);
-  const material = useRef<THREE.MeshBasicMaterial>(null);
-
-  useFrame(({ clock }) => {
-    const pulse = (Math.sin(clock.getElapsedTime() * 5 + phase) + 1) / 2;
-    if (ring.current) ring.current.scale.setScalar(0.9 + pulse * 0.22);
-    if (material.current) material.current.opacity = 0.58 + pulse * 0.36;
-  });
-
-  return (
-    <mesh ref={ring} position={position} rotation={[-Math.PI / 2, 0, 0]}>
-      <ringGeometry args={[radius * 0.64, radius, 20]} />
-      <meshBasicMaterial ref={material} color={color} transparent depthWrite={false} />
-    </mesh>
-  );
-}
-
 function HoverMarker() {
   const hover = useLab((s) => s.hoverHole);
-  const pending = useLab((s) => s.pendingHoles);
+  const pending = useLab((s) => s.pendingHole);
   const probe = useLab((s) => s.probeHole);
-  const items = [hover, ...pending, probe].filter(Boolean) as string[];
+  const items = [hover, pending, probe].filter(Boolean) as string[];
   return (
     <>
       {items.map((id, i) => {
         const [x, y, z] = holePosition(id);
-        const color = pending.includes(id) ? "#0f766e" : id === probe ? "#eab308" : "#38bdf8";
+        const color = id === pending ? "#0f766e" : id === probe ? "#eab308" : "#38bdf8";
         return (
-          <PulseMarker
-            key={id + i}
-            position={[x, y + 0.03, z]}
-            color={color}
-            phase={i * 1.8}
-          />
+          <mesh key={id + i} position={[x, y + 0.03, z]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.045, 0.07, 20]} />
+            <meshBasicMaterial color={color} transparent opacity={0.95} />
+          </mesh>
         );
       })}
     </>
@@ -63,12 +33,12 @@ function HoverMarker() {
 }
 
 function PreviewWire() {
-  const pending = useLab((s) => s.pendingHoles);
+  const pending = useLab((s) => s.pendingHole);
   const hover = useLab((s) => s.hoverHole);
   const tool = useLab((s) => s.tool);
   const color = useLab((s) => s.wireColor);
-  if (tool !== "wire" || pending.length !== 1 || !hover || pending[0] === hover) return null;
-  const a = holePosition(pending[0]);
+  if (tool !== "wire" || !pending || !hover || pending === hover) return null;
+  const a = holePosition(pending);
   const b = holePosition(hover);
   const dist = Math.hypot(a[0] - b[0], a[2] - b[2]);
   const mid = new THREE.Vector3((a[0] + b[0]) / 2, a[1] + 0.2 + dist * 0.2, (a[2] + b[2]) / 2);
@@ -100,28 +70,22 @@ function PowerClipMarkers() {
 function ClipMarker({ id, color }: { id: string; color: string }) {
   const [x, y, z] = holePosition(id);
   return (
-    <PulseMarker position={[x, y + 0.08, z]} color={color} phase={1.2} radius={0.095} />
+    <group position={[x, y + 0.08, z]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.06, 0.095, 20]} />
+        <meshBasicMaterial color={color} transparent opacity={0.95} />
+      </mesh>
+    </group>
   );
 }
 
 function CameraRig() {
   const { camera } = useThree();
-  const controlsRef = useRef<any>(null);
-
   useMemo(() => {
     camera.position.set(3.8, 4.4, 5.6);
   }, [camera]);
-
-  useFrame(() => {
-    if (!controlsRef.current) return;
-
-    controlsRef.current.enabled =
-      !window.__ecePotDragging;
-  });
-
   return (
     <OrbitControls
-      ref={controlsRef}
       makeDefault
       enableDamping
       dampingFactor={0.08}
@@ -144,12 +108,16 @@ export function LabScene() {
   return (
     <>
       <color attach="background" args={["#0a1018"]} />
-      <fog attach="fog" args={["#0a1018", 12, 28]} />
-      <hemisphereLight args={["#9db4d0", "#1a1f28", 0.55]} />
-      <ambientLight intensity={0.28} />
+      <fog attach="fog" args={["#0a1018", 14, 30]} />
+
+      {/* Soft environment reflections for more realistic plastics/metal */}
+      <Environment preset="warehouse" environmentIntensity={0.42} />
+
+      <hemisphereLight args={["#a8c0d8", "#1a1f28", 0.5]} />
+      <ambientLight intensity={0.36} />
       <directionalLight
         position={[6, 10, 4]}
-        intensity={1.35}
+        intensity={1.15}
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
@@ -159,7 +127,7 @@ export function LabScene() {
         shadow-camera-top={8}
         shadow-camera-bottom={-8}
       />
-      <directionalLight position={[-4, 6, -3]} intensity={0.25} />
+      <directionalLight position={[-4, 6, -3]} intensity={0.28} />
 
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
@@ -195,10 +163,10 @@ export function LabScene() {
       ))}
       <HoverMarker />
       <PreviewWire />
-      <ContactShadows position={[0, 0, 0]} opacity={0.45} scale={18} blur={2.2} far={3} />
+      <ContactShadows position={[0, 0, 0]} opacity={0.5} scale={18} blur={2.4} far={3.2} />
       <CameraRig />
       <group visible={false}>
-        {getAllHoles().slice(0, 1).map((id) => (
+        {ALL_HOLES.slice(0, 1).map((id) => (
           <mesh key={id} />
         ))}
       </group>

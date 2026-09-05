@@ -13,7 +13,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
 import {
-  getAllHoles,
+  ALL_HOLES,
   holePosition,
   BOARD,
 } from "@/circuit/breadboard";
@@ -81,197 +81,33 @@ function vec(id: HoleId) {
   return new THREE.Vector3(x, y, z);
 }
 
-/**
- * Breadboard-style solid-core jumper:
- * vertical stubs out of each hole, then a low flat Manhattan run
- * strictly above the board top (no Catmull undershoot into the plastic).
- */
 function TubeWire({
   a,
   b,
   color,
   lift = 1,
-  radius = 0.022,
-  style = "flat",
+  radius = 0.028,
 }: {
   a: THREE.Vector3;
   b: THREE.Vector3;
   color: string;
   lift?: number;
   radius?: number;
-  style?: "flat" | "arc";
 }) {
   const geom = useMemo(() => {
-    const boardY = BOARD.height;
-    // Endpoints always sit on top of the board surface (or above if already higher).
-    const start = a.clone();
-    start.y = Math.max(a.y, boardY + 0.02);
-    const end = b.clone();
-    end.y = Math.max(b.y, boardY + 0.02);
-
-    const hash =
-      Math.abs(
-        start.x * 12.9898 +
-          start.z * 78.233 +
-          end.x * 37.719 +
-          end.z * 9.131,
-      ) % 1;
-    const stagger = (hash - 0.5) * 0.05;
-
-    if (style === "arc") {
-      const upA = start.clone();
-      upA.y = Math.max(start.y, boardY) + 0.12;
-      const upB = end.clone();
-      upB.y = Math.max(end.y, boardY) + 0.12;
-      const dist = start.distanceTo(end);
-      const mid = upA.clone().lerp(upB, 0.5);
-      mid.y += 0.2 + dist * 0.1 * lift;
-      mid.x += stagger;
-      const curve = new THREE.CatmullRomCurve3([start, upA, mid, upB, end]);
-      curve.curveType = "centripetal";
-      return new THREE.TubeGeometry(curve, 28, radius, 8, false);
-    }
-
-    // Flat run height — always clearly above the plastic top.
-    const y = boardY + 0.07 + 0.01 * Math.min(lift, 2) + Math.abs(stagger) * 0.2;
-
-    const sx = start.x + stagger * 0.25;
-    const sz = start.z + stagger * 0.25;
-    const ex = end.x + stagger * 0.25;
-    const ez = end.z + stagger * 0.25;
-
-    // Explicit polyline so the tube never dips into the board.
-    const p0 = start.clone();
-    const p1 = new THREE.Vector3(sx, y, sz);
-    const dx = Math.abs(ex - sx);
-    const dz = Math.abs(ez - sz);
-    const points: THREE.Vector3[] = [p0, p1];
-    if (dx >= dz) {
-      if (Math.abs(ex - sx) > 0.02) {
-        points.push(new THREE.Vector3(ex, y, sz));
-      }
-      if (Math.abs(ez - sz) > 0.02) {
-        points.push(new THREE.Vector3(ex, y, ez));
-      }
-    } else {
-      if (Math.abs(ez - sz) > 0.02) {
-        points.push(new THREE.Vector3(sx, y, ez));
-      }
-      if (Math.abs(ex - sx) > 0.02) {
-        points.push(new THREE.Vector3(ex, y, ez));
-      }
-    }
-    // Last horizontal point at dest column/row, then drop into the hole.
-    const lastHoriz = points[points.length - 1];
-    if (
-      Math.abs(lastHoriz.x - ex) > 0.001 ||
-      Math.abs(lastHoriz.z - ez) > 0.001
-    ) {
-      points.push(new THREE.Vector3(ex, y, ez));
-    }
-    points.push(end.clone());
-
-    // Build a path of straight segments (no curve overshoot).
-    const path = new THREE.CurvePath<THREE.Vector3>();
-    for (let i = 0; i < points.length - 1; i++) {
-      path.add(new THREE.LineCurve3(points[i], points[i + 1]));
-    }
-
-    const dist = start.distanceTo(end);
-    const segs = Math.max(12, Math.min(64, Math.floor(dist * 48) + points.length * 4));
-    return new THREE.TubeGeometry(path, segs, radius, 6, false);
-  }, [a.x, a.y, a.z, b.x, b.y, b.z, lift, radius, style]);
+    const dist = a.distanceTo(b);
+    const mid = a.clone().lerp(b, 0.5);
+    mid.y += 0.16 + dist * 0.2 * lift;
+    const curve = new THREE.QuadraticBezierCurve3(a.clone(), mid, b.clone());
+    return new THREE.TubeGeometry(curve, 24, radius, 8, false);
+  }, [a.x, a.y, a.z, b.x, b.y, b.z, lift, radius]);
 
   useEffect(() => () => geom.dispose(), [geom]);
 
   return (
     <mesh geometry={geom} castShadow>
-      <meshStandardMaterial color={color} roughness={0.42} metalness={0.08} />
+      <meshStandardMaterial color={color} roughness={0.38} metalness={0.12} />
     </mesh>
-  );
-}
-
-
-/** Rising smoke + heat haze when a part is overloaded / shorted. */
-function SmokePuffs({
-  position,
-  active,
-}: {
-  position: THREE.Vector3;
-  active: boolean;
-}) {
-  const count = 14;
-  const mesh = useRef<THREE.InstancedMesh>(null);
-  const mat = useRef<THREE.MeshBasicMaterial>(null);
-  const dummy = useMemo(() => new THREE.Object3D(), []);
-  const seeds = useMemo(
-    () =>
-      Array.from({ length: count }, (_, i) => ({
-        phase: i / count,
-        x: ((i * 17) % 7) * 0.025 - 0.075,
-        z: ((i * 13) % 7) * 0.025 - 0.075,
-        speed: 0.18 + (i % 5) * 0.04,
-        drift: 0.04 + (i % 4) * 0.015,
-      })),
-    [],
-  );
-  const strength = useRef(0);
-
-  useFrame(({ clock }, delta) => {
-    const m = mesh.current;
-    if (!m) return;
-    strength.current = THREE.MathUtils.damp(
-      strength.current,
-      active ? 1 : 0,
-      3.2,
-      delta,
-    );
-    if (strength.current < 0.02) {
-      m.visible = false;
-      return;
-    }
-    m.visible = true;
-    const t = clock.getElapsedTime();
-    for (let i = 0; i < count; i++) {
-      const s = seeds[i];
-      const u = (t * s.speed + s.phase) % 1;
-      const rise = u * 0.85;
-      const spread = u * 1.4;
-      dummy.position.set(
-        position.x + s.x + Math.sin(t * 1.6 + i) * s.drift * spread,
-        position.y + 0.08 + rise,
-        position.z + s.z + Math.cos(t * 1.4 + i) * s.drift * spread,
-      );
-      const scale =
-        (0.07 + u * 0.16) * strength.current * (1 - u * 0.35);
-      dummy.scale.setScalar(Math.max(0.001, scale));
-      dummy.updateMatrix();
-      m.setMatrixAt(i, dummy.matrix);
-    }
-    m.instanceMatrix.needsUpdate = true;
-    if (mat.current) {
-      // Darker smoke, more opaque near the base of the plume
-      mat.current.opacity = 0.55 * strength.current;
-    }
-  });
-
-  return (
-    <instancedMesh
-      ref={mesh}
-      args={[undefined, undefined, count]}
-      frustumCulled={false}
-      renderOrder={20}
-    >
-      <sphereGeometry args={[1, 10, 10]} />
-      <meshBasicMaterial
-        ref={mat}
-        color="#4b5563"
-        transparent
-        depthWrite={false}
-        opacity={0.5}
-        toneMapped={false}
-      />
-    </instancedMesh>
   );
 }
 
@@ -292,60 +128,43 @@ function CurrentFlow({
   const material = useRef<THREE.MeshBasicMaterial>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const point = useMemo(() => new THREE.Vector3(), []);
+  const tangent = useMemo(() => new THREE.Vector3(), []);
+  const up = useMemo(() => new THREE.Vector3(0, 1, 0), []);
   const flow = useRef(0);
-  const particleCount = 8;
+  const particleCount = 7;
 
-  // Match TubeWire flat Manhattan path so particles ride on the wire.
-  const pathPoints = useMemo(() => {
-    const boardY = BOARD.height;
-    const start = a.clone();
-    start.y = Math.max(a.y, boardY + 0.02);
-    const end = b.clone();
-    end.y = Math.max(b.y, boardY + 0.02);
-    const y = boardY + 0.075;
-    const sx = start.x;
-    const sz = start.z;
-    const ex = end.x;
-    const ez = end.z;
-    const pts: THREE.Vector3[] = [
-      start.clone(),
-      new THREE.Vector3(sx, y, sz),
-    ];
-    const dx = Math.abs(ex - sx);
-    const dz = Math.abs(ez - sz);
-    if (dx >= dz) {
-      if (dx > 0.02) pts.push(new THREE.Vector3(ex, y, sz));
-      if (dz > 0.02) pts.push(new THREE.Vector3(ex, y, ez));
-    } else {
-      if (dz > 0.02) pts.push(new THREE.Vector3(sx, y, ez));
-      if (dx > 0.02) pts.push(new THREE.Vector3(ex, y, ez));
-    }
-    const last = pts[pts.length - 1];
-    if (Math.abs(last.x - ex) > 0.001 || Math.abs(last.z - ez) > 0.001) {
-      pts.push(new THREE.Vector3(ex, y, ez));
-    }
-    pts.push(end.clone());
-    return pts;
-  }, [a.x, a.y, a.z, b.x, b.y, b.z]);
+  const curve = useMemo(() => {
+    const mid = a
+      .clone()
+      .lerp(b, 0.5);
 
-  const samplePath = (t: number, out: THREE.Vector3) => {
-    const pts = pathPoints;
-    if (pts.length < 2) {
-      out.copy(a);
-      return;
-    }
-    // Arc-length-ish uniform by segment count
-    const segs = pts.length - 1;
-    const f = Math.min(0.999, Math.max(0, t)) * segs;
-    const i = Math.min(segs - 1, Math.floor(f));
-    const u = f - i;
-    out.lerpVectors(pts[i], pts[i + 1], u);
-  };
+    const distance =
+      a.distanceTo(b);
+
+    mid.y +=
+      0.16 +
+      distance * 0.2;
+
+    return new THREE.QuadraticBezierCurve3(
+      a.clone(),
+      mid,
+      b.clone(),
+    );
+  }, [
+    a.x,
+    a.y,
+    a.z,
+    b.x,
+    b.y,
+    b.z,
+  ]);
 
   useFrame(({ clock }, delta) => {
     const mesh = particles.current;
     if (!mesh) return;
 
+    // Damping lets the current settle in and out instead of popping on a
+    // frame when the circuit state changes.
     flow.current = THREE.MathUtils.damp(
       flow.current,
       active ? strength : 0,
@@ -359,34 +178,32 @@ function CurrentFlow({
     }
 
     mesh.visible = true;
-    const time = clock.getElapsedTime() * (0.55 + flow.current * 1.2);
+    const time = clock.getElapsedTime() * (0.45 + flow.current * 1.35);
 
     for (let index = 0; index < particleCount; index += 1) {
       const t = (time + index / particleCount) % 1;
       const edgeFade = Math.sin(Math.PI * t);
-      const pulse = 0.85 + Math.sin(time * 6 + index) * 0.15;
-      const size = (0.35 + flow.current * 0.55) * pulse * edgeFade;
+      const pulse = 0.82 + Math.sin(time * 7 + index * 1.7) * 0.18;
+      const size = (0.45 + flow.current * 0.7) * pulse * edgeFade;
 
-      samplePath(t, point);
+      curve.getPointAt(t, point);
+      curve.getTangentAt(t, tangent);
       dummy.position.copy(point);
-      dummy.scale.setScalar(Math.max(0.001, size));
+      dummy.quaternion.setFromUnitVectors(up, tangent);
+      dummy.scale.set(size * 0.72, size * 1.65, size * 0.72);
       dummy.updateMatrix();
       mesh.setMatrixAt(index, dummy.matrix);
     }
 
     mesh.instanceMatrix.needsUpdate = true;
     if (material.current) {
-      material.current.opacity = 0.4 + flow.current * 0.55;
+      material.current.opacity = 0.35 + flow.current * 0.6;
     }
   });
 
   return (
-    <instancedMesh
-      ref={particles}
-      args={[undefined, undefined, particleCount]}
-      frustumCulled={false}
-    >
-      <sphereGeometry args={[0.02, 8, 8]} />
+    <instancedMesh ref={particles} args={[undefined, undefined, particleCount]}>
+      <sphereGeometry args={[0.022, 8, 8]} />
       <meshBasicMaterial
         ref={material}
         color={color}
@@ -398,8 +215,6 @@ function CurrentFlow({
     </instancedMesh>
   );
 }
-
-
 export function JumperWire({
   wire,
   selected,
@@ -648,11 +463,9 @@ function PinLabel({
 export function ResistorMesh({
   part,
   selected,
-  sim,
 }: {
   part: PlacedPart;
   selected: boolean;
-  sim: SimResult;
 }) {
   const [hovered, setHovered] = useState(false);
 
@@ -662,7 +475,6 @@ export function ResistorMesh({
 
   const a = vec(part.pins.a);
   const b = vec(part.pins.b);
-  const isBurned = Boolean(sim.burned?.[part.id]);
 
   // Direction from pin 1 -> pin 2.
   // The resistor lies horizontally across the breadboard.
@@ -1000,10 +812,6 @@ export function ResistorMesh({
           />
         </>
       )}
-      <SmokePuffs
-        position={a.clone().lerp(b, 0.5).setY(BOARD.height + 0.2)}
-        active={isBurned}
-      />
     </group>
   );
 }
@@ -1055,13 +863,6 @@ export function LedMesh({
 
   const isOn =
     Boolean(state?.on);
-
-  const isBurned =
-    Boolean(state?.overcurrent) ||
-    Boolean(sim.burned?.[part.id]);
-
-  const displayColor = isBurned ? "#1c1917" : color;
-  const glowColor = isBurned ? "#ea580c" : color;
 
   // ---------------------------------------------------------
   // MATERIALS
@@ -1307,8 +1108,8 @@ export function LedMesh({
 
         <meshStandardMaterial
           ref={lensMaterial}
-          color={displayColor}
-          emissive={isBurned ? "#ea580c" : color}
+          color={color}
+          emissive={color}
           emissiveIntensity={0.08}
           roughness={0.18}
           metalness={0}
@@ -1340,7 +1141,7 @@ export function LedMesh({
 
         <meshStandardMaterial
           color="#fff7d6"
-          emissive={isBurned ? "#ea580c" : color}
+          emissive={color}
           emissiveIntensity={0.15}
           metalness={0.1}
           roughness={0.2}
@@ -1380,14 +1181,9 @@ export function LedMesh({
 
       <LedAura
         position={body}
-        color={glowColor}
-        active={isOn || isBurned}
-        brightness={isBurned ? 1 : brightness}
-      />
-
-      <SmokePuffs
-        position={new THREE.Vector3(body.x, body.y + 0.05, body.z)}
-        active={isBurned}
+        color={color}
+        active={isOn}
+        brightness={brightness}
       />
 
       {/* =====================================================
@@ -3611,35 +3407,20 @@ export function ButtonMesh({ part, selected }: { part: PlacedPart; selected: boo
 
   useFrame((_, delta) => {
     if (!cap.current) return;
-    // Recoil: spring back up when released
     cap.current.position.y = THREE.MathUtils.damp(
       cap.current.position.y,
-      closed ? 0.055 : 0.11,
-      closed ? 28 : 18,
+      closed ? 0.065 : 0.105,
+      20,
       delta,
     );
   });
 
-  const press = (pressed: boolean) => {
-    useLab.getState().setButtonPressed(part.id, pressed);
-  };
-
   return (
     <group
-      onPointerDown={(e) => {
+      onClick={(e) => {
         e.stopPropagation();
-        (e.target as HTMLElement)?.setPointerCapture?.(e.pointerId);
-        press(true);
+        useLab.getState().toggleSwitch(part.id);
       }}
-      onPointerUp={(e) => {
-        e.stopPropagation();
-        press(false);
-      }}
-      onPointerLeave={(e) => {
-        // Release if the pointer leaves while held
-        if (closed) press(false);
-      }}
-      onPointerCancel={() => press(false)}
     >
       <Lead from={a} to={body} />
       <Lead from={b} to={body} />
@@ -3677,79 +3458,10 @@ export function BuzzerMesh({
   body.y += 0.13;
   const membrane = useRef<THREE.Mesh>(null);
   const state = sim.buzzers[part.id];
-  const isBurned =
-    Boolean(state?.overcurrent) ||
-    Boolean(sim.burned?.[part.id]);
-  const audioRef = useRef<{
-    ctx: AudioContext;
-    osc: OscillatorNode;
-    gain: GainNode;
-  } | null>(null);
-
-  // Web Audio beep while the buzzer is driven
-  useEffect(() => {
-    const on = Boolean(state?.on);
-    const loudness = state?.loudness ?? (on ? 0.6 : 0);
-
-    if (on) {
-      if (!audioRef.current) {
-        try {
-          const AC =
-            window.AudioContext ||
-            (window as unknown as { webkitAudioContext: typeof AudioContext })
-              .webkitAudioContext;
-          const ctx = new AC();
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = "square";
-          osc.frequency.value = 880;
-          gain.gain.value = 0;
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start();
-          audioRef.current = { ctx, osc, gain };
-        } catch {
-          audioRef.current = null;
-        }
-      }
-      const audio = audioRef.current;
-      if (audio) {
-        if (audio.ctx.state === "suspended") {
-          void audio.ctx.resume();
-        }
-        audio.gain.gain.setTargetAtTime(
-          0.04 + loudness * 0.08,
-          audio.ctx.currentTime,
-          0.03,
-        );
-      }
-    } else if (audioRef.current) {
-      const audio = audioRef.current;
-      audio.gain.gain.setTargetAtTime(0, audio.ctx.currentTime, 0.05);
-    }
-
-    return () => {
-      // keep oscillator alive across toggles; hard-stop on unmount only
-    };
-  }, [state?.on, state?.loudness]);
-
-  useEffect(() => {
-    return () => {
-      const audio = audioRef.current;
-      if (!audio) return;
-      try {
-        audio.osc.stop();
-        void audio.ctx.close();
-      } catch {
-        /* ignore */
-      }
-      audioRef.current = null;
-    };
-  }, []);
 
   useFrame(({ clock }, delta) => {
     if (!membrane.current) return;
-    const loudness = state?.on ? state.loudness ?? 0.5 : 0;
+    const loudness = state?.on ? state.loudness : 0;
     const vibration = loudness
       ? Math.sin(clock.getElapsedTime() * 42) * (0.012 + loudness * 0.018)
       : 0;
@@ -3789,7 +3501,6 @@ export function BuzzerMesh({
           <meshStandardMaterial color="#020617" />
         </mesh>
       </group>
-      <SmokePuffs position={body} active={isBurned} />
     </group>
   );
 }
@@ -5091,680 +4802,6 @@ export function PotMesh({
   );
 }
 
-/**
- * Arduino-style / DIP MCU module seated on the breadboard pins.
- * Body is centered on the pin centroid and raised above the board.
- */
-/**
- * Arduino Uno–style board (visual only).
- * Sits beside / above the breadboard with jumper leads to mapped holes
- * rather than pretending DIP pins go into the board.
- */
-export function McuMesh({
-  part,
-  selected,
-  powered,
-}: {
-  part: PlacedPart;
-  selected: boolean;
-  powered: boolean;
-}) {
-  const pinEntries = Object.entries(part.pins);
-  const pinVecs = pinEntries.map(([, id]) => vec(id));
-
-  const anchor =
-    pinVecs.length > 0
-      ? pinVecs
-          .reduce((sum, p) => sum.add(p), new THREE.Vector3())
-          .multiplyScalar(1 / pinVecs.length)
-      : new THREE.Vector3(0, 0, 0);
-
-  // Approximate real Uno proportions (units ≈ 0.2" pitch)
-  const W = 2.72;
-  const D = 2.12;
-  const T = 0.08;
-
-  // Sit beside the breadboard, not on top of it
-  const origin = new THREE.Vector3(
-    anchor.x + 0.15,
-    BOARD.height + T / 2 + 0.03,
-    Math.min(anchor.z - 1.75, -3.55),
-  );
-
-  const pcb = selected ? "#1d6bb8" : "#0d8fd8";
-  const header = "#111827";
-  const silk = "rgba(241,245,249,0.85)";
-
-  const HeaderStrip = ({
-    x,
-    z,
-    pins,
-    alongX,
-  }: {
-    x: number;
-    z: number;
-    pins: number;
-    alongX: boolean;
-  }) => {
-    const pitch = 0.1;
-    const len = pins * pitch;
-    const hx = alongX ? len + 0.04 : 0.13;
-    const hz = alongX ? 0.13 : len + 0.04;
-    return (
-      <group position={[x, T / 2 + 0.05, z]}>
-        <mesh castShadow>
-          <boxGeometry args={[hx, 0.1, hz]} />
-          <meshStandardMaterial color={header} roughness={0.4} />
-        </mesh>
-        {Array.from({ length: pins }).map((_, i) => {
-          const o = (i - (pins - 1) / 2) * pitch;
-          return (
-            <mesh
-              key={i}
-              position={[alongX ? o : 0, 0.03, alongX ? 0 : o]}
-            >
-              <boxGeometry args={[0.048, 0.07, 0.048]} />
-              <meshStandardMaterial
-                color="#050505"
-                metalness={0.35}
-                roughness={0.45}
-              />
-            </mesh>
-          );
-        })}
-      </group>
-    );
-  };
-
-  // Map important Uno pins to header locations for jumper starts
-  const headerPoint = (name: string): THREE.Vector3 => {
-    const digitalOrder = [
-      "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7",
-      "d8", "d9", "d10", "d11", "d12", "d13",
-    ];
-    const powerOrder = ["vcc", "gnd", "gnd2", "vin"];
-    const analogOrder = ["a0", "a1", "a2", "a3", "a4", "a5"];
-    const di = digitalOrder.indexOf(name);
-    if (di >= 0) {
-      return new THREE.Vector3(
-        -W * 0.28 + di * 0.1,
-        T / 2 + 0.12,
-        -D * 0.42,
-      );
-    }
-    const ai = analogOrder.indexOf(name);
-    if (ai >= 0) {
-      return new THREE.Vector3(
-        W * 0.05 + ai * 0.1,
-        T / 2 + 0.12,
-        D * 0.42,
-      );
-    }
-    const pi = powerOrder.indexOf(name);
-    if (pi >= 0) {
-      return new THREE.Vector3(
-        -W * 0.35 + pi * 0.12,
-        T / 2 + 0.12,
-        D * 0.42,
-      );
-    }
-    if (name === "vcc") return new THREE.Vector3(-0.55, T / 2 + 0.12, D * 0.42);
-    if (name === "gnd") return new THREE.Vector3(-0.35, T / 2 + 0.12, D * 0.42);
-    return new THREE.Vector3(0, T / 2 + 0.12, 0);
-  };
-
-  // Only draw jumpers for pins that matter visually (power + LCD bus)
-  const jumperNames = [
-    "vcc", "gnd", "d2", "d3", "d4", "d5", "d11", "d12", "a4", "a5",
-  ];
-  const jumperColors: Record<string, string> = {
-    vcc: "#c2413b",
-    gnd: "#1a1d23",
-    d2: "#047857",
-    d3: "#047857",
-    d4: "#047857",
-    d5: "#047857",
-    d11: "#1d4ed8",
-    d12: "#1d4ed8",
-    a4: "#7c3aed",
-    a5: "#ca8a04",
-  };
-
-  const jumpers = jumperNames
-    .map((name) => {
-      const holeId = part.pins[name];
-      if (!holeId) return null;
-      const hole = vec(holeId);
-      const from = origin.clone().add(headerPoint(name));
-      const to = new THREE.Vector3(hole.x, BOARD.height + 0.09, hole.z);
-      return {
-        key: name,
-        from,
-        to,
-        color: jumperColors[name] ?? "#94a3b8",
-      };
-    })
-    .filter(Boolean) as Array<{
-    key: string;
-    from: THREE.Vector3;
-    to: THREE.Vector3;
-    color: string;
-  }>;
-
-  return (
-    <group
-      onClick={(e) => {
-        e.stopPropagation();
-        useLab.getState().select(part.id);
-      }}
-    >
-      {jumpers.map((j) => (
-        <TubeWire
-          key={j.key}
-          a={j.from}
-          b={j.to}
-          color={j.color}
-          lift={0.9}
-          radius={0.016}
-          style="flat"
-        />
-      ))}
-
-      <group position={origin}>
-        {/* PCB */}
-        <mesh castShadow receiveShadow>
-          <boxGeometry args={[W, T, D]} />
-          <meshStandardMaterial color={pcb} roughness={0.4} metalness={0.06} />
-        </mesh>
-        {/* Underside mask */}
-        <mesh position={[0, -T / 2 - 0.006, 0]}>
-          <boxGeometry args={[W + 0.015, 0.012, D + 0.015]} />
-          <meshStandardMaterial
-            color={selected ? "#c026d3" : "#7e22ce"}
-            roughness={0.5}
-          />
-        </mesh>
-
-        {/* Mounting holes */}
-        {[
-          [-W * 0.42, -D * 0.4],
-          [W * 0.42, -D * 0.4],
-          [-W * 0.42, D * 0.38],
-          [W * 0.38, D * 0.38],
-        ].map(([hx, hz], i) => (
-          <mesh key={i} position={[hx, T / 2 + 0.001, hz]} rotation={[-Math.PI / 2, 0, 0]}>
-            <circleGeometry args={[0.06, 16]} />
-            <meshStandardMaterial color="#0b1220" roughness={0.6} />
-          </mesh>
-        ))}
-
-        {/* USB-B */}
-        <group position={[-W / 2 - 0.02, 0.04, -0.4]}>
-          <mesh castShadow position={[-0.06, 0, 0]}>
-            <boxGeometry args={[0.32, 0.18, 0.48]} />
-            <meshStandardMaterial color="#d1d5db" metalness={0.55} roughness={0.28} />
-          </mesh>
-          <mesh position={[-0.2, 0, 0]}>
-            <boxGeometry args={[0.08, 0.12, 0.34]} />
-            <meshStandardMaterial color="#9ca3af" metalness={0.65} roughness={0.22} />
-          </mesh>
-          <mesh position={[-0.02, 0.02, 0]}>
-            <boxGeometry args={[0.14, 0.06, 0.22]} />
-            <meshStandardMaterial color="#1f2937" roughness={0.4} />
-          </mesh>
-        </group>
-
-        {/* DC barrel jack */}
-        <group position={[-W / 2 + 0.28, 0.05, 0.7]}>
-          <mesh castShadow rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.1, 0.1, 0.28, 18]} />
-            <meshStandardMaterial color="#111827" roughness={0.35} />
-          </mesh>
-          <mesh position={[-0.14, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.055, 0.055, 0.12, 14]} />
-            <meshStandardMaterial color="#374151" metalness={0.45} roughness={0.3} />
-          </mesh>
-        </group>
-
-        {/* Reset button */}
-        <group position={[-0.42, T / 2 + 0.03, -0.55]}>
-          <mesh>
-            <boxGeometry args={[0.16, 0.04, 0.16]} />
-            <meshStandardMaterial color="#1f2937" roughness={0.4} />
-          </mesh>
-          <mesh position={[0, 0.035, 0]} castShadow>
-            <cylinderGeometry args={[0.05, 0.05, 0.04, 16]} />
-            <meshStandardMaterial
-              color="#dc2626"
-              emissive="#7f1d1d"
-              emissiveIntensity={0.25}
-              roughness={0.35}
-            />
-          </mesh>
-        </group>
-
-        {/* 16 MHz crystal */}
-        <mesh position={[-0.12, T / 2 + 0.03, -0.12]} castShadow>
-          <boxGeometry args={[0.2, 0.055, 0.12]} />
-          <meshStandardMaterial color="#e5e7eb" metalness={0.75} roughness={0.18} />
-        </mesh>
-
-        {/* ATmega328P */}
-        <group position={[0.2, T / 2 + 0.04, 0.05]}>
-          <mesh castShadow>
-            <boxGeometry args={[0.62, 0.08, 0.62]} />
-            <meshStandardMaterial color="#0b1220" roughness={0.28} />
-          </mesh>
-          {/* pin legs hint */}
-          {Array.from({ length: 7 }).map((_, i) => (
-            <mesh key={`l${i}`} position={[-0.35, -0.02, -0.24 + i * 0.08]}>
-              <boxGeometry args={[0.04, 0.02, 0.03]} />
-              <meshStandardMaterial color="#c0c4c8" metalness={0.7} roughness={0.25} />
-            </mesh>
-          ))}
-          {Array.from({ length: 7 }).map((_, i) => (
-            <mesh key={`r${i}`} position={[0.35, -0.02, -0.24 + i * 0.08]}>
-              <boxGeometry args={[0.04, 0.02, 0.03]} />
-              <meshStandardMaterial color="#c0c4c8" metalness={0.7} roughness={0.25} />
-            </mesh>
-          ))}
-          <Html
-            position={[0, 0.06, 0]}
-            center
-            distanceFactor={6.5}
-            style={{
-              pointerEvents: "none",
-              color: "#94a3b8",
-              fontFamily: "IBM Plex Mono, monospace",
-              fontSize: "7px",
-              letterSpacing: "0.06em",
-              userSelect: "none",
-              whiteSpace: "nowrap",
-            }}
-          >
-            ATMEGA328P
-          </Html>
-        </group>
-
-        {/* USB-serial IC */}
-        <mesh position={[-0.78, T / 2 + 0.03, -0.35]} castShadow>
-          <boxGeometry args={[0.32, 0.05, 0.28]} />
-          <meshStandardMaterial color="#111827" roughness={0.3} />
-        </mesh>
-
-        {/* Voltage regulator */}
-        <mesh position={[-0.55, T / 2 + 0.04, 0.55]} castShadow>
-          <boxGeometry args={[0.22, 0.08, 0.28]} />
-          <meshStandardMaterial color="#1e293b" roughness={0.4} />
-        </mesh>
-        <mesh position={[-0.55, T / 2 + 0.09, 0.55]}>
-          <boxGeometry args={[0.18, 0.02, 0.22]} />
-          <meshStandardMaterial color="#64748b" metalness={0.5} roughness={0.3} />
-        </mesh>
-
-        {/* Electrolytic caps */}
-        {[
-          [-0.25, 0.45],
-          [-0.05, 0.5],
-        ].map(([cx, cz], i) => (
-          <mesh key={i} position={[cx, T / 2 + 0.07, cz]} castShadow>
-            <cylinderGeometry args={[0.06, 0.06, 0.12, 12]} />
-            <meshStandardMaterial color="#1e3a5f" roughness={0.35} />
-          </mesh>
-        ))}
-
-        {/* Status LEDs: ON, L, TX, RX */}
-        {(
-          [
-            [0.95, -0.55, powered ? "#22c55e" : "#14532d", "ON"],
-            [0.95, -0.35, powered ? "#fbbf24" : "#78350f", "L"],
-            [0.95, -0.15, "#64748b", "TX"],
-            [0.95, 0.05, "#64748b", "RX"],
-          ] as const
-        ).map(([lx, lz, col, _label], i) => (
-          <mesh key={i} position={[lx, T / 2 + 0.03, lz]}>
-            <boxGeometry args={[0.08, 0.04, 0.06]} />
-            <meshStandardMaterial
-              color={col}
-              emissive={powered && i < 2 ? col : "#000000"}
-              emissiveIntensity={powered && i < 2 ? 1.4 : 0}
-              roughness={0.3}
-            />
-          </mesh>
-        ))}
-
-        {/* Female headers */}
-        <HeaderStrip x={0.05} z={-D * 0.42} pins={14} alongX />
-        <HeaderStrip x={-0.15} z={D * 0.42} pins={8} alongX />
-        <HeaderStrip x={0.55} z={D * 0.42} pins={6} alongX />
-        {/* ICSP */}
-        <HeaderStrip x={0.95} z={0.35} pins={3} alongX={false} />
-
-        {/* Silkscreen labels */}
-        <Html
-          position={[0.05, T / 2 + 0.02, 0.72]}
-          center
-          distanceFactor={6.2}
-          style={{
-            pointerEvents: "none",
-            color: silk,
-            fontFamily: "IBM Plex Mono, monospace",
-            fontSize: "11px",
-            fontWeight: 700,
-            letterSpacing: "0.12em",
-            userSelect: "none",
-            whiteSpace: "nowrap",
-          }}
-        >
-          ARDUINO UNO
-        </Html>
-        <Html
-          position={[0.05, T / 2 + 0.02, -D / 2 + 0.22]}
-          center
-          distanceFactor={7}
-          style={{
-            pointerEvents: "none",
-            color: "rgba(226,232,240,0.7)",
-            fontFamily: "IBM Plex Mono, monospace",
-            fontSize: "8px",
-            letterSpacing: "0.05em",
-            userSelect: "none",
-            whiteSpace: "nowrap",
-          }}
-        >
-          DIGITAL (PWM~)
-        </Html>
-        <Html
-          position={[-0.05, T / 2 + 0.02, D / 2 - 0.22]}
-          center
-          distanceFactor={7}
-          style={{
-            pointerEvents: "none",
-            color: "rgba(226,232,240,0.7)",
-            fontFamily: "IBM Plex Mono, monospace",
-            fontSize: "8px",
-            letterSpacing: "0.05em",
-            userSelect: "none",
-            whiteSpace: "nowrap",
-          }}
-        >
-          POWER · ANALOG IN
-        </Html>
-      </group>
-    </group>
-  );
-}
-
-/**
- * 16×2 character LCD module. Screen text is drawn with an Html overlay
- * when the display is powered; otherwise a dark bezel is shown.
- */
-export function LcdMesh({
-  part,
-  selected,
-  powered,
-  text,
-}: {
-  part: PlacedPart;
-  selected: boolean;
-  powered: boolean;
-  text: string;
-}) {
-  const pinEntries = Object.entries(part.pins);
-  const pinVecs = pinEntries.map(([, id]) => vec(id));
-
-  const body = pinVecs
-    .reduce((sum, p) => sum.add(p), new THREE.Vector3())
-    .multiplyScalar(1 / Math.max(pinVecs.length, 1));
-  body.y = BOARD.height + 0.22;
-
-  let minX = Infinity,
-    maxX = -Infinity,
-    minZ = Infinity,
-    maxZ = -Infinity;
-  for (const p of pinVecs) {
-    minX = Math.min(minX, p.x);
-    maxX = Math.max(maxX, p.x);
-    minZ = Math.min(minZ, p.z);
-    maxZ = Math.max(maxZ, p.z);
-  }
-  // Standard 16×2 module is wider than its pin row.
-  const width = Math.max(1.55, maxX - minX + 0.35);
-  const depth = Math.max(0.72, maxZ - minZ + 0.35);
-
-  const housing = selected ? "#1e293b" : "#0f172a";
-  const bezel = "#020617";
-  const glass = powered ? "#0b3d2e" : "#020617";
-
-  // Split text into up to two 16-char rows for a classic HD44780 look.
-  const raw = (text ?? "").replace(/\r/g, "");
-  const line1 = raw.slice(0, 16).padEnd(16, " ");
-  const line2 = raw.slice(16, 32).padEnd(16, " ");
-
-  return (
-    <group
-      onClick={(e) => {
-        e.stopPropagation();
-        useLab.getState().select(part.id);
-      }}
-    >
-      {pinVecs.map((pin, index) => {
-        const pinEnd = new THREE.Vector3(pin.x, body.y - 0.12, pin.z);
-        return (
-          <group key={`lcd-pin-${index}`}>
-            <Lead from={pin} to={pinEnd} />
-            <mesh position={[pin.x, body.y - 0.14, pin.z]} castShadow>
-              <boxGeometry args={[0.03, 0.1, 0.03]} />
-              <meshStandardMaterial
-                color="#c9a227"
-                metalness={0.9}
-                roughness={0.25}
-              />
-            </mesh>
-          </group>
-        );
-      })}
-
-      <group position={body}>
-        {/* Module housing */}
-        <mesh castShadow receiveShadow>
-          <boxGeometry args={[width, 0.12, depth]} />
-          <meshStandardMaterial color={housing} roughness={0.45} />
-        </mesh>
-
-        {/* Dark bezel */}
-        <mesh position={[0, 0.065, 0]}>
-          <boxGeometry args={[width * 0.92, 0.02, depth * 0.72]} />
-          <meshStandardMaterial color={bezel} roughness={0.55} />
-        </mesh>
-
-        {/* Glass / active area */}
-        <mesh position={[0, 0.078, 0]}>
-          <boxGeometry args={[width * 0.84, 0.015, depth * 0.58]} />
-          <meshStandardMaterial
-            color={glass}
-            emissive={powered ? "#064e3b" : "#000000"}
-            emissiveIntensity={powered ? 0.55 : 0}
-            roughness={0.2}
-            metalness={0.05}
-          />
-        </mesh>
-
-        {/* Character text when powered */}
-        {powered && (
-          <Html
-            position={[0, 0.1, 0]}
-            center
-            distanceFactor={5.5}
-            style={{
-              pointerEvents: "none",
-              color: "#a7f3d0",
-              fontFamily: "IBM Plex Mono, ui-monospace, monospace",
-              fontSize: "13px",
-              fontWeight: 600,
-              letterSpacing: "0.12em",
-              lineHeight: 1.35,
-              textAlign: "left",
-              whiteSpace: "pre",
-              textShadow: "0 0 6px rgba(52, 211, 153, 0.45)",
-              userSelect: "none",
-              background: "transparent",
-            }}
-          >
-            <div>
-              <div>{line1}</div>
-              <div>{line2}</div>
-            </div>
-          </Html>
-        )}
-
-        {/* Small label on the edge */}
-        <Html
-          position={[0, 0.02, depth * 0.42]}
-          center
-          distanceFactor={7}
-          style={{
-            pointerEvents: "none",
-            color: "#94a3b8",
-            fontFamily: "IBM Plex Mono, monospace",
-            fontSize: "9px",
-            letterSpacing: "0.06em",
-            userSelect: "none",
-          }}
-        >
-          {part.props.label ?? "LCD 16x2"}
-        </Html>
-      </group>
-    </group>
-  );
-}
-
-
-/**
- * 0.96" SSD1306-style OLED module (I2C: VCC GND SDA SCL).
- */
-export function OledMesh({
-  part,
-  selected,
-  powered,
-  text,
-}: {
-  part: PlacedPart;
-  selected: boolean;
-  powered: boolean;
-  text: string;
-}) {
-  const pinEntries = Object.entries(part.pins);
-  const pinVecs = pinEntries.map(([, id]) => vec(id));
-  const body = pinVecs
-    .reduce((sum, p) => sum.add(p), new THREE.Vector3())
-    .multiplyScalar(1 / Math.max(pinVecs.length, 1));
-  body.y = BOARD.height + 0.2;
-
-  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-  for (const p of pinVecs) {
-    minX = Math.min(minX, p.x);
-    maxX = Math.max(maxX, p.x);
-    minZ = Math.min(minZ, p.z);
-    maxZ = Math.max(maxZ, p.z);
-  }
-  const width = Math.max(1.05, maxX - minX + 0.25);
-  const depth = Math.max(0.85, maxZ - minZ + 0.3);
-
-  const lines = (text || "").replace(/\r/g, "").split("\n").slice(0, 8);
-  while (lines.length < 4) lines.push("");
-
-  return (
-    <group
-      onClick={(e) => {
-        e.stopPropagation();
-        useLab.getState().select(part.id);
-      }}
-    >
-      {pinVecs.map((pin, index) => {
-        const pinEnd = new THREE.Vector3(pin.x, body.y - 0.1, pin.z);
-        return (
-          <group key={`oled-pin-${index}`}>
-            <Lead from={pin} to={pinEnd} />
-            <mesh position={[pin.x, body.y - 0.12, pin.z]} castShadow>
-              <boxGeometry args={[0.03, 0.09, 0.03]} />
-              <meshStandardMaterial color="#c9a227" metalness={0.9} roughness={0.25} />
-            </mesh>
-          </group>
-        );
-      })}
-
-      <group position={body}>
-        {/* PCB */}
-        <mesh castShadow receiveShadow>
-          <boxGeometry args={[width, 0.06, depth]} />
-          <meshStandardMaterial
-            color={selected ? "#1e293b" : "#0f172a"}
-            roughness={0.45}
-          />
-        </mesh>
-        {/* Bezel */}
-        <mesh position={[0, 0.04, -0.02]}>
-          <boxGeometry args={[width * 0.88, 0.03, depth * 0.7]} />
-          <meshStandardMaterial color="#020617" roughness={0.5} />
-        </mesh>
-        {/* Glass */}
-        <mesh position={[0, 0.055, -0.02]}>
-          <boxGeometry args={[width * 0.78, 0.012, depth * 0.55]} />
-          <meshStandardMaterial
-            color={powered ? "#020617" : "#010409"}
-            emissive={powered ? "#0ea5e9" : "#000000"}
-            emissiveIntensity={powered ? 0.15 : 0}
-            roughness={0.15}
-            metalness={0.2}
-          />
-        </mesh>
-        {powered && (
-          <Html
-            position={[0, 0.08, -0.02]}
-            center
-            distanceFactor={5.2}
-            style={{
-              pointerEvents: "none",
-              color: "#7dd3fc",
-              fontFamily: "IBM Plex Mono, ui-monospace, monospace",
-              fontSize: "10px",
-              fontWeight: 600,
-              letterSpacing: "0.04em",
-              lineHeight: 1.25,
-              textAlign: "left",
-              whiteSpace: "pre",
-              textShadow: "0 0 6px rgba(14, 165, 233, 0.55)",
-              userSelect: "none",
-            }}
-          >
-            <div>
-              {lines.map((line, i) => (
-                <div key={i}>{(line || " ").padEnd(16, " ").slice(0, 21)}</div>
-              ))}
-            </div>
-          </Html>
-        )}
-        <Html
-          position={[0, 0.01, depth * 0.4]}
-          center
-          distanceFactor={7}
-          style={{
-            pointerEvents: "none",
-            color: "#94a3b8",
-            fontFamily: "IBM Plex Mono, monospace",
-            fontSize: "9px",
-            letterSpacing: "0.05em",
-            userSelect: "none",
-          }}
-        >
-          {part.props.label ?? "OLED 128×64"}
-        </Html>
-      </group>
-    </group>
-  );
-}
-
 export function PartSwitch({
   part,
   selected,
@@ -5776,7 +4813,7 @@ export function PartSwitch({
 }) {
   switch (part.kind) {
     case "resistor":
-      return <ResistorMesh part={part} selected={selected} sim={sim} />;
+      return <ResistorMesh part={part} selected={selected} />;
     case "diode":
       return <DiodeMesh part={part} selected={selected} sim={sim} />;
     case "led":
@@ -5794,13 +4831,7 @@ export function PartSwitch({
     case "relay":
       return <RelayMesh part={part} selected={selected} sim={sim} />;
     case "mcu":
-      return (
-        <McuMesh
-          part={part}
-          selected={selected}
-          powered={sim.mcuPowered}
-        />
-      );
+      return <McuMesh part={part} selected={selected} powered={sim.mcuPowered} />;
     case "lcd":
       return (
         <LcdMesh
@@ -5808,15 +4839,6 @@ export function PartSwitch({
           selected={selected}
           powered={sim.lcdPowered}
           text={sim.lcdText}
-        />
-      );
-    case "oled":
-      return (
-        <OledMesh
-          part={part}
-          selected={selected}
-          powered={Boolean(sim.oledPowered)}
-          text={sim.oledText ?? ""}
         />
       );
     case "pot":
@@ -5912,8 +4934,8 @@ export function PowerSupply() {
         </mesh>
         <PowerStatusLight powered={powerOn} strength={flowStrength} />
       </group>
-      <TubeWire a={jackRed} b={destPos} color="#c2413b" lift={1.1} radius={0.028} style="arc" />
-      <TubeWire a={jackBlk} b={destNeg} color="#1a1d23" lift={1.1} radius={0.028} style="arc" />
+      <TubeWire a={jackRed} b={destPos} color="#c2413b" lift={1.4} radius={0.035} />
+      <TubeWire a={jackBlk} b={destNeg} color="#1a1d23" lift={1.4} radius={0.035} />
       <CurrentFlow a={jackRed} b={destPos} active={flowing} color="#fff1f2" strength={flowStrength} />
       <CurrentFlow a={jackBlk} b={destNeg} active={flowing} color="#dbeafe" strength={flowStrength} />
     </>
@@ -5925,14 +4947,10 @@ export function BreadboardBody() {
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const clickHole = useLab((s) => s.clickHole);
   const setHover = useLab((s) => s.setHover);
-  const boardId = useLab((s) => s.boardId);
-  const holes = useMemo(() => getAllHoles(), [boardId]);
 
   useLayoutEffect(() => {
     if (!meshRef.current) return;
-    // Instance count is fixed at construction; rebuild when board changes
-    // by relying on React key on the parent (boardId).
-    holes.forEach((id, i) => {
+    ALL_HOLES.forEach((id, i) => {
       const [x, y, z] = holePosition(id);
       dummy.position.set(x, y - 0.01, z);
       dummy.rotation.x = Math.PI / 2;
@@ -5940,56 +4958,46 @@ export function BreadboardBody() {
       meshRef.current!.setMatrixAt(i, dummy.matrix);
     });
     meshRef.current.instanceMatrix.needsUpdate = true;
-    meshRef.current.count = holes.length;
-  }, [dummy, holes]);
-
-  const w = BOARD.width;
-  const d = BOARD.depth;
-  const railLen = Math.max(0.4, w - 0.3);
+  }, [dummy]);
 
   return (
     <group>
-      <mesh position={[0, BOARD.y, 0]} receiveShadow castShadow>
-        <boxGeometry args={[w, BOARD.height, d]} />
+      <mesh position={[0, 0.17, 0]} receiveShadow castShadow>
+        <boxGeometry args={[6.7, 0.34, 5.7]} />
         <meshStandardMaterial color="#f4f1ea" roughness={0.7} />
       </mesh>
-      {BOARD.hasRails && (
-        <>
-          <mesh position={[0, BOARD.height + 0.005, -2.5]}>
-            <boxGeometry args={[railLen, 0.012, 0.06]} />
-            <meshStandardMaterial color="#c2413b" />
-          </mesh>
-          <mesh position={[0, BOARD.height + 0.005, -2.2]}>
-            <boxGeometry args={[railLen, 0.012, 0.06]} />
-            <meshStandardMaterial color="#1d4ed8" />
-          </mesh>
-          <mesh position={[0, BOARD.height + 0.005, 2.2]}>
-            <boxGeometry args={[railLen, 0.012, 0.06]} />
-            <meshStandardMaterial color="#1d4ed8" />
-          </mesh>
-          <mesh position={[0, BOARD.height + 0.005, 2.5]}>
-            <boxGeometry args={[railLen, 0.012, 0.06]} />
-            <meshStandardMaterial color="#c2413b" />
-          </mesh>
-        </>
-      )}
+      <mesh position={[0, 0.345, -2.5]}>
+        <boxGeometry args={[6.4, 0.012, 0.06]} />
+        <meshStandardMaterial color="#c2413b" />
+      </mesh>
+      <mesh position={[0, 0.345, -2.2]}>
+        <boxGeometry args={[6.4, 0.012, 0.06]} />
+        <meshStandardMaterial color="#1d4ed8" />
+      </mesh>
+      <mesh position={[0, 0.345, 2.2]}>
+        <boxGeometry args={[6.4, 0.012, 0.06]} />
+        <meshStandardMaterial color="#1d4ed8" />
+      </mesh>
+      <mesh position={[0, 0.345, 2.5]}>
+        <boxGeometry args={[6.4, 0.012, 0.06]} />
+        <meshStandardMaterial color="#c2413b" />
+      </mesh>
       <mesh position={[0, 0.22, 0]}>
-        <boxGeometry args={[Math.max(0.5, w - 0.15), 0.08, 0.42]} />
+        <boxGeometry args={[6.55, 0.08, 0.42]} />
         <meshStandardMaterial color="#e7e2d8" />
       </mesh>
       <instancedMesh
-        key={boardId + "-" + holes.length}
         ref={meshRef}
-        args={[undefined, undefined, holes.length]}
+        args={[undefined, undefined, ALL_HOLES.length]}
         onPointerDown={(e) => {
           e.stopPropagation();
           if (e.button !== 0 || e.instanceId == null) return;
-          clickHole(holes[e.instanceId]);
+          clickHole(ALL_HOLES[e.instanceId]);
         }}
         onPointerMove={(e) => {
           e.stopPropagation();
           if (e.instanceId == null) return;
-          setHover(holes[e.instanceId]);
+          setHover(ALL_HOLES[e.instanceId]);
         }}
         onPointerOut={() => setHover(null)}
       >

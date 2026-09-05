@@ -1,11 +1,5 @@
-import { getAllHoles, holeStrip } from "./breadboard";
-import type {
-  HoleId,
-  PlacedPart,
-  RelayState,
-  SimResult,
-  Wire,
-} from "./types";
+import { ALL_HOLES, holeStrip } from "./breadboard";
+import type { HoleId, PlacedPart, SimResult, Wire } from "./types";
 import {
   executeMcuProgram,
   type McuRuntimeState,
@@ -33,22 +27,21 @@ const LED_RD = 18;
 const LED_MAX_MA = 25;
 
 class UnionFind {
-  parent = new Map<number, number>();
-  find(x: number): number {
+  parent = new Map<string, string>();
+  find(x: string) {
     if (!this.parent.has(x)) this.parent.set(x, x);
     const p = this.parent.get(x)!;
     if (p !== x) this.parent.set(x, this.find(p));
     return this.parent.get(x)!;
   }
-  union(a: number, b: number) {
+  union(a: string, b: string) {
     const pa = this.find(a);
     const pb = this.find(b);
     if (pa !== pb) this.parent.set(pa, pb);
   }
 }
 
-/** Gaussian elimination for Ax = b. Returns null on singular system. */
-function solveLinear(A: number[][], b: number[]): number[] | null {
+function solve(A: number[][], b: number[]): number[] | null {
   const n = b.length;
   if (n === 0) return [];
   const M = A.map((row, i) => [...row, b[i]]);
@@ -80,78 +73,74 @@ function solveLinear(A: number[][], b: number[]): number[] | null {
   return x;
 }
 
-/**
- * DC nodal analysis for a network of two-terminal resistive elements
- * driven by a single ideal voltage source between positiveNode and
- * negativeNode (ground).
- */
-function solve(opts: {
-  nodes: number[];
-  elements: Array<{ a: number; b: number; resistance: number; id: string }>;
-  positiveNode: number;
-  negativeNode: number;
-  voltage: number;
-}): Record<number, number> {
-  const { nodes, elements, positiveNode, negativeNode, voltage } = opts;
-
-  // Ground is the negative node; solve for the remaining nodes.
-  const unknowns = nodes.filter((n) => n !== negativeNode);
-  const index = new Map<number, number>();
-  unknowns.forEach((n, i) => index.set(n, i));
-  const n = unknowns.length;
-  if (n === 0) {
-    const result: Record<number, number> = {};
-    for (const node of nodes) result[node] = 0;
-    return result;
-  }
-
-  const G: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
-  const I: number[] = Array(n).fill(0);
-
-  // Tiny conductance to ground on every node (avoids singular matrix).
-  for (let i = 0; i < n; i++) {
-    G[i][i] += GMIN;
-  }
-
-  for (const el of elements) {
-    const g = 1 / Math.max(el.resistance, 1e-9);
-    const ia = index.get(el.a);
-    const ib = index.get(el.b);
-
-    if (ia !== undefined && ib !== undefined) {
-      G[ia][ia] += g;
-      G[ib][ib] += g;
-      G[ia][ib] -= g;
-      G[ib][ia] -= g;
-    } else if (ia !== undefined) {
-      // el.b is ground (or unknown only on a)
-      G[ia][ia] += g;
-    } else if (ib !== undefined) {
-      G[ib][ib] += g;
-    }
-  }
-
-  // Ideal voltage source: force V(positiveNode) = voltage via a large
-  // conductance to a fixed potential (stamp as known voltage).
-  const ip = index.get(positiveNode);
-  if (ip !== undefined) {
-    const Gfix = 1e6; // large conductance ≈ ideal source
-    G[ip][ip] += Gfix;
-    I[ip] += Gfix * voltage;
-  }
-
-  const x = solveLinear(G, I);
-  const result: Record<number, number> = {};
-  result[negativeNode] = 0;
-  if (x) {
-    unknowns.forEach((node, i) => {
-      result[node] = x[i];
-    });
-  } else {
-    for (const node of unknowns) result[node] = 0;
-  }
-  return result;
+function pinHole(part: PlacedPart, name: string): HoleId | undefined {
+  return part.pins[name];
 }
+
+function digitalValue(
+  state: McuRuntimeState,
+  pin: string | undefined,
+): 0 | 1 {
+  if (!pin) return 0;
+
+  return state.digital[pin] ?? 0;
+}
+
+function lcdPinsFromMcu(
+  lcd: PlacedPart,
+  mcu: PlacedPart,
+  mcuState: McuRuntimeState,
+  uf: UnionFind,
+): Hd44780Pins {
+  const connectedValue = (
+    lcdPin: string,
+  ): 0 | 1 => {
+    const lcdHole = pinHole(lcd, lcdPin);
+
+    if (!lcdHole) return 0;
+
+    const lcdNet = uf.find(
+      holeStrip(lcdHole),
+    );
+
+    /*
+     * Find the MCU GPIO connected to this LCD pin.
+     */
+    for (const [pinName, hole] of Object.entries(
+      mcu.pins,
+    )) {
+      if (
+        !pinName.startsWith("d") ||
+        !/^d\d+$/i.test(pinName)
+      ) {
+        continue;
+      }
+
+      if (
+        uf.find(holeStrip(hole)) === lcdNet
+      ) {
+        return digitalValue(
+          mcuState,
+          pinName.toLowerCase(),
+        );
+      }
+    }
+
+    return 0;
+  };
+
+  return {
+    rs: connectedValue("rs"),
+    rw: connectedValue("rw"),
+    e: connectedValue("e"),
+
+    d4: connectedValue("d4"),
+    d5: connectedValue("d5"),
+    d6: connectedValue("d6"),
+    d7: connectedValue("d7"),
+  };
+}
+
 
 export function simulate(input: {
   parts: PlacedPart[];
@@ -175,21 +164,14 @@ export function simulate(input: {
     capacitors: {},
     inductors: {},
     buzzers: {},
-    relays: {},
 
     // New MCU / LCD runtime state
     mcus: {},
     lcds: {},
 
-    supplyCurrent: 0,
-    warnings: [],
-
     // Backwards-compatible fields
     lcdPowered: false,
     lcdText: "",
-    oledPowered: false,
-    oledText: "",
-    burned: {},
     mcuPowered: false,
   };
 
@@ -201,11 +183,11 @@ export function simulate(input: {
   // BUILD ELECTRICAL NETS
   // ============================================================
 
-  const uf = new UnionFind(getAllHoles().length);
+  const uf = new UnionFind(ALL_HOLES.length);
 
   const indexOf = new Map<HoleId, number>();
 
-  getAllHoles().forEach((hole, index) => {
+  ALL_HOLES.forEach((hole, index) => {
     indexOf.set(hole, index);
   });
 
@@ -223,24 +205,10 @@ export function simulate(input: {
   // ============================================================
   // BREADBOARD INTERNAL CONNECTIONS
   // ============================================================
-  // Group holes that share a strip (rails and vertical columns),
-  // then short them together. holeStrip is a function that maps a
-  // hole id → strip id; it is not itself an iterable of strips.
 
-  const strips = new Map<string, HoleId[]>();
-  for (const hole of getAllHoles()) {
-    const stripId = holeStrip(hole);
-    let group = strips.get(stripId);
-    if (!group) {
-      group = [];
-      strips.set(stripId, group);
-    }
-    group.push(hole);
-  }
-
-  for (const group of strips.values()) {
-    for (let i = 1; i < group.length; i++) {
-      union(group[0], group[i]);
+  for (const strip of holeStrip) {
+    for (let i = 1; i < strip.length; i++) {
+      union(strip[0], strip[i]);
     }
   }
 
@@ -286,7 +254,7 @@ export function simulate(input: {
 
   const nodes = new Set<number>();
 
-  for (const hole of getAllHoles()) {
+  for (const hole of ALL_HOLES) {
     const index = indexOf.get(hole);
 
     if (index === undefined) continue;
@@ -303,7 +271,7 @@ export function simulate(input: {
   const voltages: Record<string, number> = {};
 
   // Start everything at 0 V.
-  for (const hole of getAllHoles()) {
+  for (const hole of ALL_HOLES) {
     voltages[hole] = 0;
   }
 
@@ -538,7 +506,7 @@ export function simulate(input: {
   // COPY NODE VOLTAGES BACK TO HOLES
   // ============================================================
 
-  for (const hole of getAllHoles()) {
+  for (const hole of ALL_HOLES) {
     const index = indexOf.get(hole);
 
     if (index === undefined) continue;
@@ -546,24 +514,6 @@ export function simulate(input: {
     const node = uf.find(index);
 
     voltages[hole] = solved[node] ?? 0;
-  }
-
-  // Guarantee supply rails show the programmed voltage even if the
-  // matrix solve was singular / empty (common on sparse educational nets).
-  if (
-    input.powerOn &&
-    input.psuPositive &&
-    input.psuNegative &&
-    positiveNode !== null &&
-    negativeNode !== null
-  ) {
-    for (const hole of getAllHoles()) {
-      const index = indexOf.get(hole);
-      if (index === undefined) continue;
-      const node = uf.find(index);
-      if (node === positiveNode) voltages[hole] = input.psuVoltage;
-      if (node === negativeNode) voltages[hole] = 0;
-    }
   }
 
   // ============================================================
@@ -634,14 +584,8 @@ export function simulate(input: {
     string,
     {
       on: boolean;
-      current?: number;
-      loudness?: number;
     }
   > = {};
-
-  const relays: Record<string, RelayState> = {};
-  const warnings: string[] = [];
-  let supplyCurrent = 0;
 
   // ============================================================
   // COMPONENT ANALYSIS
@@ -693,57 +637,22 @@ export function simulate(input: {
     if (part.kind === "led") {
       const va = voltageAt(part, "a");
       const vk = voltageAt(part, "k");
+
       const forwardVoltage = va - vk;
 
-      // Detect rail-powered LEDs even when the nodal solve under-reports.
-      let acrossSupply = false;
-      if (
-        input.powerOn &&
-        positiveNode !== null &&
-        negativeNode !== null
-      ) {
-        const ha = part.pins.a;
-        const hk = part.pins.k;
-        const ia = ha ? indexOf.get(ha) : undefined;
-        const ik = hk ? indexOf.get(hk) : undefined;
-        if (ia !== undefined && ik !== undefined) {
-          const na = uf.find(ia);
-          const nk = uf.find(ik);
-          acrossSupply =
-            (na === positiveNode && nk === negativeNode) ||
-            (nk === positiveNode && na === negativeNode);
-        }
-      }
-
-      const on =
-        input.powerOn &&
-        (forwardVoltage > 1.2 || acrossSupply);
-
-      const brightness = on
-        ? Math.min(
-            1,
-            Math.max(
-              0.35,
-              acrossSupply
-                ? 0.85
-                : (forwardVoltage - 1.2) / 2,
-            ),
-          )
-        : 0;
-
-      // Approx current through the 220 Ω model used in the matrix
-      const iLed = on
-        ? Math.abs(currents[part.id] ?? forwardVoltage / 220)
-        : 0;
-      // Typical LED rating ~20 mA continuous; bare across 5 V is overload
-      const overcurrent = iLed > 0.018;
+      const on = forwardVoltage > 1.5;
 
       leds[part.id] = {
-        id: part.id,
         on,
-        brightness: overcurrent ? 1 : brightness,
-        current: iLed,
-        overcurrent,
+        brightness: on
+          ? Math.min(
+              1,
+              Math.max(
+                0,
+                (forwardVoltage - 1.5) / 1.5,
+              ),
+            )
+          : 0,
       };
     }
 
@@ -758,11 +667,8 @@ export function simulate(input: {
       const voltage = va - vk;
 
       diodes[part.id] = {
-        id: part.id,
         on: voltage > 0.55,
         voltage,
-        forwardVoltage: voltage,
-        current: Math.abs(currents[part.id] ?? 0),
       };
     }
 
@@ -821,39 +727,8 @@ export function simulate(input: {
         voltageAt(part, "a") -
         voltageAt(part, "b");
 
-      let acrossSupply = false;
-      if (
-        input.powerOn &&
-        positiveNode !== null &&
-        negativeNode !== null
-      ) {
-        const ha = part.pins.a;
-        const hb = part.pins.b;
-        const ia = ha ? indexOf.get(ha) : undefined;
-        const ib = hb ? indexOf.get(hb) : undefined;
-        if (ia !== undefined && ib !== undefined) {
-          const na = uf.find(ia);
-          const nb = uf.find(ib);
-          acrossSupply =
-            (na === positiveNode && nb === negativeNode) ||
-            (nb === positiveNode && na === negativeNode);
-        }
-      }
-
-      const on =
-        input.powerOn &&
-        (Math.abs(voltage) >= 1.5 || acrossSupply);
-      const loudness = on
-        ? Math.min(1, Math.max(0.4, Math.abs(voltage) / 5 || 0.7))
-        : 0;
-
-      const iBz = Math.abs(voltage) / 100;
-      const overcurrent = on && iBz > 0.05;
       buzzers[part.id] = {
-        on,
-        loudness: overcurrent ? 1 : loudness,
-        current: iBz,
-        overcurrent,
+        on: Math.abs(voltage) >= 2,
       };
     }
   }
@@ -863,9 +738,6 @@ export function simulate(input: {
   // ============================================================
 
   const mcus: SimResult["mcus"] = {};
-  let oledTextFromMcu = "";
-  let oledActiveFromMcu = false;
-  let lcdSoftFromMcu = "";
 
   for (const mcu of input.parts) {
     if (mcu.kind !== "mcu") continue;
@@ -876,11 +748,8 @@ export function simulate(input: {
     const gnd =
       voltageAt(mcu, "gnd");
 
-    // Electrical check, with lab fallback: Power ON + MCU present ⇒ run sketch
-    const electricallyPowered = vcc - gnd >= 2.5;
     const powered =
-      input.powerOn &&
-      (electricallyPowered || Boolean(mcu.pins.vcc && mcu.pins.gnd));
+      vcc - gnd >= 3.0;
 
     const code =
       mcu.props.code ??
@@ -892,20 +761,6 @@ export function simulate(input: {
         code,
         powered,
       );
-
-    if (powered && runtime.state.oledActive) {
-      oledActiveFromMcu = true;
-      oledTextFromMcu = (runtime.state.oledLines ?? [])
-        .join("\n")
-        .replace(/[ \t]+$/gm, "");
-    }
-    if (powered && runtime.state.lcdSoftLines) {
-      const soft = runtime.state.lcdSoftLines
-        .map((l) => l.replace(/[ \t]+$/g, ""))
-        .join("\n")
-        .replace(/\n+$/g, "");
-      if (soft.trim()) lcdSoftFromMcu = soft;
-    }
 
     mcus[mcu.id] = {
       id: mcu.id,
@@ -1067,14 +922,10 @@ export function simulate(input: {
   for (const mcu of input.parts) {
     if (mcu.kind !== "mcu") continue;
 
-    const vcc2 = voltageAt(mcu, "vcc");
-    const gnd2 = voltageAt(mcu, "gnd");
-    const electricallyPowered =
-      vcc2 - gnd2 >= 2.5;
     const powered =
-      input.powerOn &&
-      (electricallyPowered ||
-        Boolean(mcu.pins.vcc && mcu.pins.gnd));
+      voltageAt(mcu, "vcc") -
+        voltageAt(mcu, "gnd") >=
+      3.0;
 
     const runtime =
       executeMcuProgram(
@@ -1087,14 +938,6 @@ export function simulate(input: {
       mcu.id,
       runtime,
     );
-
-    if (powered && runtime.state.lcdSoftLines) {
-      const soft = runtime.state.lcdSoftLines
-        .map((l) => l.replace(/[ \t]+$/g, ""))
-        .join("\n")
-        .replace(/\n+$/g, "");
-      if (soft.trim()) lcdSoftFromMcu = soft;
-    }
 
     // Keep the exact state returned by this execution.
     mcus[mcu.id] = {
@@ -1133,10 +976,8 @@ export function simulate(input: {
     const vss =
       voltageAt(lcd, "vss");
 
-    const anyMcuOn = Object.values(mcus).some((m) => m.powered);
     const powered =
-      input.powerOn &&
-      (vdd - vss >= 2.5 || anyMcuOn);
+      vdd - vss >= 3.0;
 
     let state =
       lcdRuntime.get(lcd.id);
@@ -1256,12 +1097,12 @@ export function simulate(input: {
         // HD44780 captures data when E goes HIGH -> LOW.
         // ------------------------------------------------------
 
-        const nextState = clockHd44780(
-          state,
-          previous,
-          current,
-        );
-        if (nextState) state = nextState;
+        state =
+          clockHd44780(
+            state,
+            previous,
+            current,
+          );
 
         previous = current;
       }
@@ -1282,19 +1123,10 @@ export function simulate(input: {
     // Save LCD state.
     // ----------------------------------------------------------
 
-    // Prefer the sketch print() soft buffer — the electrical HD44780
-    // path often produces garbage when nets are partially connected.
-    let text = "";
-    if (powered) {
-      if (lcdSoftFromMcu.trim()) {
-        text = lcdSoftFromMcu;
-      } else {
-        const bus = lcdText(state) || "";
-        // Only accept bus text if it looks like printable content
-        const printable = bus.replace(/[^\x20-\x7E\n]/g, "").trim();
-        text = printable.length >= 2 ? bus : "";
-      }
-    }
+    const text =
+      powered
+        ? lcdText(state)
+        : "";
 
     lcds[lcd.id] = {
       id: lcd.id,
@@ -1338,59 +1170,12 @@ export function simulate(input: {
   const lcdPowered =
     Boolean(firstLcd?.powered);
 
-  let displayText = firstLcd?.text ?? "";
-  if (lcdSoftFromMcu.trim() && mcuPowered) {
-    displayText = lcdSoftFromMcu;
-  }
-
-  // OLED: powered if any oled module has VCC-GND >= 3V
-  let oledPowered = false;
-  for (const part of input.parts) {
-    if (part.kind !== "oled") continue;
-    const v = voltageAt(part, "vcc") - voltageAt(part, "gnd");
-    if (v >= 3.0) oledPowered = true;
-  }
-  // Also treat MCU-driven buffer as visible when MCU is up
-  if (!oledPowered && oledActiveFromMcu && mcuPowered) {
-    oledPowered = true;
-  }
-  const oledText = oledPowered ? oledTextFromMcu : "";
+  const displayText =
+    firstLcd?.text ?? "";
 
   // ============================================================
   // FINAL RESULT
   // ============================================================
-
-  // Rough total current drawn from the supply (sum of element currents
-  // leaving the positive node). Good enough for the UI meter.
-  for (const el of elements) {
-    if (el.a === positiveNode || el.b === positiveNode) {
-      const va = solved[el.a] ?? 0;
-      const vb = solved[el.b] ?? 0;
-      const i = (va - vb) / Math.max(el.resistance, 1e-9);
-      if (el.a === positiveNode) supplyCurrent += i;
-      else supplyCurrent -= i;
-    }
-  }
-  supplyCurrent = Math.abs(supplyCurrent);
-
-  const burned: Record<string, boolean> = {};
-  for (const [id, led] of Object.entries(leds)) {
-    if (led.overcurrent) burned[id] = true;
-  }
-  for (const [id, bz] of Object.entries(buzzers)) {
-    if (bz.overcurrent) burned[id] = true;
-  }
-  // Resistors: P = I²R, assume 1/4 W rating
-  for (const part of input.parts) {
-    if (part.kind !== "resistor") continue;
-    const i = Math.abs(currents[part.id] ?? 0);
-    const r = Math.max(0.001, part.props.resistance ?? 1000);
-    if (i * i * r > 0.25 || i > 0.5) burned[part.id] = true;
-  }
-  // Diodes: > 1 A treated as overcurrent
-  for (const [id, d] of Object.entries(diodes)) {
-    if (Math.abs(d.current ?? 0) > 1) burned[id] = true;
-  }
 
   return {
     voltages,
@@ -1405,20 +1190,13 @@ export function simulate(input: {
     capacitors,
     inductors,
     buzzers,
-    relays,
 
     mcus,
     lcds,
-
-    supplyCurrent,
-    warnings,
 
     // Compatibility with the current mesh code.
     mcuPowered,
     lcdPowered,
     lcdText: displayText,
-    oledPowered,
-    oledText,
-    burned,
   };
 }

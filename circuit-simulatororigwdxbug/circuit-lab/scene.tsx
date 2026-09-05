@@ -2,7 +2,7 @@ import { ContactShadows, Grid, OrbitControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
-import { getAllHoles, holePosition } from "@/circuit/breadboard";
+import { ALL_HOLES, holePosition } from "@/circuit/breadboard";
 import { useLab } from "@/store/lab";
 import {
   BreadboardBody,
@@ -198,7 +198,7 @@ export function LabScene() {
       <ContactShadows position={[0, 0, 0]} opacity={0.45} scale={18} blur={2.2} far={3} />
       <CameraRig />
       <group visible={false}>
-        {getAllHoles().slice(0, 1).map((id) => (
+        {ALL_HOLES.slice(0, 1).map((id) => (
           <mesh key={id} />
         ))}
       </group>

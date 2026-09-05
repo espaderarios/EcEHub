@@ -41,7 +41,6 @@ export type ToolId =
   | "buzzer"
   | "relay"
   | "lcd"
-  | "oled"
   | "mcu"
   | "pot";
 
@@ -56,7 +55,6 @@ export type PartKind =
   | "buzzer"
   | "relay"
   | "lcd"
-  | "oled"
   | "mcu"
   | "pot";
 
@@ -107,7 +105,6 @@ export interface DiodeState {
   on: boolean;
   current: number;
   forwardVoltage: number;
-  overcurrent?: boolean;
 }
 export interface CapacitorState {
   id: string;
@@ -120,7 +117,6 @@ export interface BuzzerState {
   on: boolean;
   current: number;
   loudness: number;
-  overcurrent?: boolean;
 }
 
 export interface RelayState {
@@ -153,34 +149,30 @@ export interface LcdSimState {
   cursorRow: number;
 }
 export interface SimResult {
-  ok?: boolean;
+  ok: boolean;
+
   error?: string;
 
   voltages: Record<HoleId, number>;
-  stripVoltages?: Record<string, number>;
-  currents?: Record<string, number>;
+
+  stripVoltages: Record<string, number>;
 
   leds: Record<string, LedState>;
+
   diodes: Record<string, DiodeState>;
+
   buzzers: Record<string, BuzzerState>;
+
   relays: Record<string, RelayState>;
 
-  switches?: Record<string, { closed: boolean }>;
-  buttons?: Record<string, { closed: boolean }>;
-  capacitors?: Record<string, CapacitorState>;
-  inductors?: Record<string, unknown>;
-
-  mcus?: Record<string, McuSimState>;
-  lcds?: Record<string, LcdSimState>;
-
   supplyCurrent: number;
+
   lcdPowered: boolean;
+
   lcdText: string;
-  /** Part ids that are thermally overloaded / "burned". */
-  burned?: Record<string, boolean>;
-  oledPowered?: boolean;
-  oledText?: string;
+
   mcuPowered: boolean;
+
   warnings: string[];
 }
 

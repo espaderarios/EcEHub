@@ -1,5 +1,3 @@
-import { useEffect } from "react";
-
 import {
   ArrowLeft,
   Cable,
@@ -14,20 +12,11 @@ import {
   Minus,
   Play,
   ToggleLeft,
-  CircleDot,
-  Magnet,
-  Volume2,
-  CircuitBoard,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-import {
-  BOARD_PRESETS,
-  holePosition,
-  nearestHole,
-  type BoardPresetId,
-} from "@/circuit/breadboard";
+import { holePosition } from "@/circuit/breadboard";
 
 import {
   dividerPreset,
@@ -37,7 +26,6 @@ import {
 
 import {
   RESISTOR_VALUES,
-  CAPACITOR_VALUES,
   type ToolId,
   type WireColor,
 } from "@/circuit/types";
@@ -45,8 +33,6 @@ import {
 import { Button } from "@/components/ui/button";
 
 import { useLab } from "@/store/lab";
-
-import * as THREE from "three";
 
 const TOOLS: {
   id: ToolId;
@@ -78,14 +64,14 @@ const TOOLS: {
   {
     id: "led",
     label: "LED",
-    hint: "A = + / K = ???",
+    hint: "A = + / K = −",
     icon: Lightbulb,
   },
 
   {
     id: "diode",
     label: "Diode",
-    hint: "A = + / K = ???",
+    hint: "A = + / K = −",
     icon: Zap,
   },
 
@@ -97,31 +83,10 @@ const TOOLS: {
   },
 
   {
-    id: "button",
-    label: "Push button",
-    hint: "Click it to open or close",
-    icon: CircleDot,
-  },
-
-  {
     id: "capacitor",
     label: "Capacitor",
     hint: "Place capacitor",
     icon: Gauge,
-  },
-
-  {
-    id: "inductor",
-    label: "Inductor",
-    hint: "DC winding resistance model",
-    icon: Magnet,
-  },
-
-  {
-    id: "buzzer",
-    label: "Buzzer",
-    hint: "Powered piezo indicator",
-    icon: Volume2,
   },
 
   {
@@ -132,23 +97,9 @@ const TOOLS: {
   },
 
   {
-    id: "relay",
-    label: "Relay",
-    hint: "Four pins: coil, coil, COM, NO",
-    icon: CircuitBoard,
-  },
-
-  {
     id: "lcd",
     label: "LCD",
     hint: "Place LCD",
-    icon: Cpu,
-  },
-
-  {
-    id: "oled",
-    label: "OLED",
-    hint: "128×64 I2C OLED (SSD1306)",
     icon: Cpu,
   },
 
@@ -177,28 +128,11 @@ const COLORS: WireColor[] = [
   "white",
 ];
 
-const PIN_ORDER: Partial<Record<ToolId, string[]>> = {
-  wire: ["end A", "end B"],
-  resistor: ["A", "B"],
-  led: ["anode +", "cathode ???"],
-  diode: ["anode +", "cathode ???"],
-  switch: ["A", "B"],
-  button: ["A", "B"],
-  capacitor: ["A", "B"],
-  inductor: ["A", "B"],
-  buzzer: ["+", "???"],
-  pot: ["end A", "wiper", "end B"],
-  relay: ["coil +", "coil ???", "COM", "NO"],
-  lcd: ["VDD +", "VSS ???"],
-  oled: ["VCC", "GND", "SDA", "SCL"],
-  mcu: ["VCC +", "GND ???"],
-};
-
 function formatCurrent(value: number) {
   const abs = Math.abs(value);
 
   if (abs < 0.001) {
-    return `${(value * 1000000).toFixed(1)} uA`;
+    return `${(value * 1000000).toFixed(1)} µA`;
   }
 
   return `${(value * 1000).toFixed(2)} mA`;
@@ -208,46 +142,10 @@ function formatVoltage(value: number) {
   return `${value.toFixed(2)} V`;
 }
 
-/** Project a screen point onto the breadboard plane (y = board height). */
-function screenToBoardPoint(
-  clientX: number,
-  clientY: number,
-): { x: number; z: number } | null {
-  const canvas = document.querySelector(
-    ".ece-circuit-lab canvas",
-  ) as HTMLCanvasElement | null;
-  if (!canvas) return null;
-
-  const rect = canvas.getBoundingClientRect();
-  const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
-  const ndcY = -((clientY - rect.top) / rect.height) * 2 + 1;
-
-  // Match the default camera from LabCanvas / CameraRig.
-  const camera = new THREE.PerspectiveCamera(
-    42,
-    rect.width / Math.max(rect.height, 1),
-    0.1,
-    60,
-  );
-  camera.position.set(3.8, 4.4, 5.6);
-  camera.lookAt(0, 0.2, 0);
-  camera.updateMatrixWorld();
-
-  const raycaster = new THREE.Raycaster();
-  raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
-  const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.34);
-  const hit = new THREE.Vector3();
-  if (!raycaster.ray.intersectPlane(plane, hit)) return null;
-  return { x: hit.x, z: hit.z };
-}
-
 export function LabOverlay() {
   const tool = useLab((s) => s.tool);
 
   const setTool = useLab((s) => s.setTool);
-  const boardId = useLab((s) => s.boardId);
-  const setBoard = useLab((s) => s.setBoard);
-  const placePartAt = useLab((s) => s.placePartAt);
 
   const wireColor = useLab((s) => s.wireColor);
 
@@ -292,7 +190,7 @@ export function LabOverlay() {
   );
 
   const pending = useLab(
-    (s) => s.pendingHoles
+    (s) => s.pendingHole
   );
 
   const probeHole = useLab(
@@ -331,21 +229,6 @@ export function LabOverlay() {
     (s) => s.setSelectedLabel
   );
 
-  const setSelectedCode = useLab(
-    (s) => s.setSelectedCode
-  );
-  const setMcuCode = useLab((s) => s.setMcuCode);
-
-  const capacitorValue = useLab((s) => s.capacitorValue);
-  const setCapacitorValue = useLab((s) => s.setCapacitorValue);
-
-  const setSelectedCapacitance = useLab(
-    (s) => s.setSelectedCapacitance
-  );
-  const selectedPart = useLab((s) =>
-    s.parts.find((p) => p.id === s.selectedId)
-  );
-
   const loadPreset = useLab(
     (s) => s.loadPreset
   );
@@ -368,65 +251,9 @@ export function LabOverlay() {
       ) ?? null
     : null;
 
-  const selectedCapacitance =
-    selectedPart?.kind === "capacitor"
-      ? Number(
-          selectedPart.props.capacitance ??
-            capacitorValue
-        )
-      : capacitorValue;
-
   const probeVoltage = probeHole
     ? sim.voltages[probeHole] ?? 0
     : null;
-
-  const pinOrder = PIN_ORDER[tool] ?? [];
-
-  // Global drop target: drag a component from the palette onto the 3D board.
-  useEffect(() => {
-    const onDragOver = (e: DragEvent) => {
-      if (
-        e.dataTransfer?.types.includes(
-          "application/x-ece-tool",
-        )
-      ) {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = "copy";
-      }
-    };
-
-    const onDrop = (e: DragEvent) => {
-      const toolId = e.dataTransfer?.getData(
-        "application/x-ece-tool",
-      ) as ToolId | undefined;
-      if (!toolId) return;
-      e.preventDefault();
-
-      const point = screenToBoardPoint(
-        e.clientX,
-        e.clientY,
-      );
-      if (!point) return;
-
-      const hole = nearestHole(
-        { x: point.x, y: 0.34, z: point.z },
-        0.35,
-      );
-      if (!hole) return;
-
-      placePartAt(toolId, hole);
-    };
-
-    window.addEventListener("dragover", onDragOver);
-    window.addEventListener("drop", onDrop);
-    return () => {
-      window.removeEventListener(
-        "dragover",
-        onDragOver,
-      );
-      window.removeEventListener("drop", onDrop);
-    };
-  }, [placePartAt]);
 
   return (
     <>
@@ -454,16 +281,11 @@ export function LabOverlay() {
         >
           <button
             type="button"
-            onClick={() => {
-              // Leave fullscreen / tear down lab before returning to explore.
-              const sim = window.CircuitSimulator;
-              if (sim?.close) sim.close();
-              else if (sim?.exitFullscreen) sim.exitFullscreen();
-              else if (sim?.unmount) sim.unmount();
-
-              if (window.navigate) window.navigate("explore");
-              else window.go?.("explore");
-            }}
+            onClick={() =>
+              window.navigate
+                ? window.navigate("explore")
+                : window.go?.("explore")
+            }
             style={{
               width: 42,
               height: 42,
@@ -498,7 +320,7 @@ export function LabOverlay() {
                 letterSpacing: 1.5,
               }}
             >
-              Explore Electronics
+              Explore · Electronics
             </div>
 
             <div
@@ -618,7 +440,8 @@ export function LabOverlay() {
             lineHeight: 1.5,
           }}
         >
-          Click a part then click holes, or drag a component onto the board to place it.
+          Select a component, then click
+          two breadboard holes to place it.
         </div>
 
         <div
@@ -635,30 +458,11 @@ export function LabOverlay() {
             const active =
               tool === item.id;
 
-            const placeable =
-              item.id !== "select" &&
-              item.id !== "probe" &&
-              item.id !== "delete";
-
             return (
               <button
                 key={item.id}
                 type="button"
-                title={
-                  placeable
-                    ? `${item.hint} — drag onto the board to place`
-                    : item.hint
-                }
-                draggable={placeable}
-                onDragStart={(e) => {
-                  if (!placeable) return;
-                  e.dataTransfer.setData(
-                    "application/x-ece-tool",
-                    item.id,
-                  );
-                  e.dataTransfer.effectAllowed = "copy";
-                  setTool(item.id);
-                }}
+                title={item.hint}
                 onClick={() =>
                   setTool(item.id)
                 }
@@ -676,9 +480,7 @@ export function LabOverlay() {
                     ? "#164e63"
                     : "rgba(255,255,255,.05)",
                   color: "white",
-                  cursor: placeable
-                    ? "grab"
-                    : "pointer",
+                  cursor: "pointer",
                   textAlign: "left",
                 }}
               >
@@ -695,83 +497,6 @@ export function LabOverlay() {
               </button>
             );
           })}
-        </div>
-
-        {/* BREADBOARD SIZE / TYPE */}
-        <div
-          style={{
-            marginTop: 18,
-            paddingTop: 14,
-            borderTop:
-              "1px solid rgba(255,255,255,.1)",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              textTransform: "uppercase",
-              letterSpacing: 1.5,
-              opacity: 0.55,
-            }}
-          >
-            Breadboard
-          </div>
-          <div
-            style={{
-              marginTop: 6,
-              marginBottom: 8,
-              fontSize: 11,
-              color: "#94a3b8",
-              lineHeight: 1.4,
-            }}
-          >
-            Switching size clears the current circuit.
-          </div>
-          <select
-            value={boardId}
-            onChange={(e) =>
-              setBoard(
-                e.target.value as BoardPresetId,
-              )
-            }
-            style={{
-              width: "100%",
-              padding: "9px 10px",
-              borderRadius: 10,
-              border:
-                "1px solid rgba(255,255,255,.12)",
-              background: "rgba(255,255,255,.06)",
-              color: "white",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            {BOARD_PRESETS.map((p) => (
-              <option
-                key={p.id}
-                value={p.id}
-                style={{ color: "#0f172a" }}
-              >
-                {p.label}
-              </option>
-            ))}
-          </select>
-          <div
-            style={{
-              marginTop: 6,
-              fontSize: 11,
-              color: "#64748b",
-              lineHeight: 1.4,
-            }}
-          >
-            {
-              BOARD_PRESETS.find(
-                (p) => p.id === boardId,
-              )?.description
-            }
-          </div>
         </div>
 
         {/* POWER */}
@@ -824,7 +549,7 @@ export function LabOverlay() {
                 fontSize: 11,
               }}
             >
-              Positive
+              🔴 + Positive
             </button>
 
             <button
@@ -846,7 +571,7 @@ export function LabOverlay() {
                 fontSize: 11,
               }}
             >
-              Ground
+              ⚫ − Ground
             </button>
           </div>
 
@@ -860,7 +585,7 @@ export function LabOverlay() {
           >
             + {psuPositive ?? "not connected"}
             <br />
-            - {psuNegative ?? "not connected"}
+            − {psuNegative ?? "not connected"}
           </div>
 
           <label
@@ -958,7 +683,7 @@ export function LabOverlay() {
 
         {/* RESISTOR SETTINGS */}
 
-        {(tool === "resistor" || tool === "pot") && (
+        {tool === "resistor" && (
           <div
             style={{
               marginTop: 18,
@@ -976,7 +701,7 @@ export function LabOverlay() {
                 opacity: 0.55,
               }}
             >
-              {tool === "pot" ? "Potentiometer value" : "Resistor value"}
+              Resistor value
             </div>
 
             <select
@@ -1004,40 +729,14 @@ export function LabOverlay() {
                     value={value}
                   >
                     {value >= 1000
-                      ? `${value / 1000} k??`
-                      : `${value} ??`}
+                      ? `${value / 1000} kΩ`
+                      : `${value} Ω`}
                   </option>
                 )
               )}
             </select>
           </div>
         )}
-
-        {tool === "capacitor" ? (
-          <div className="mt-3 grid grid-cols-2 gap-1.5">
-            {CAPACITOR_VALUES.map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                onClick={() => {
-                  setCapacitorValue(item.value);
-
-                  if (selectedPart?.kind === "capacitor") {
-                    setSelectedCapacitance(item.value);
-                  }
-                }}
-                className={cn(
-                  "h-8 rounded-[8px] px-2 font-mono text-xs",
-                  selectedCapacitance === item.value
-                    ? "bg-accent text-accent-fg"
-                    : "bg-white/10 text-paper",
-                )}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        ) : null}
 
         {/* LED SETTINGS */}
 
@@ -1179,7 +878,8 @@ export function LabOverlay() {
               />
             </label>
 
-            {(selected.kind === "resistor" || selected.kind === "pot") && (
+            {selected.kind ===
+              "resistor" && (
               <input
                 type="number"
                 value={
@@ -1203,64 +903,7 @@ export function LabOverlay() {
                 }}
               />
             )}
-            {selected.kind === "capacitor" && (
-            <label
-              style={{
-                display: "block",
-                marginTop: 10,
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: 1.2,
-                  textTransform: "uppercase",
-                  opacity: 0.55,
-                  marginBottom: 6,
-                }}
-              >
-                Capacitance
-              </div>
 
-              <select
-                value={String(
-                  selected.props.capacitance ??
-                    capacitorValue
-                )}
-                onChange={(e) => {
-                  const value = Number(e.target.value);
-
-                  if (!Number.isFinite(value)) {
-                    return;
-                  }
-
-                  setSelectedCapacitance(value);
-                  setCapacitorValue(value);
-                }}
-                style={{
-                  width: "100%",
-                  padding: "9px 10px",
-                  borderRadius: 9,
-                  border:
-                    "1px solid rgba(255,255,255,.12)",
-                  background: "#111827",
-                  color: "white",
-                  fontSize: 12,
-                  outline: "none",
-                }}
-              >
-                {CAPACITOR_VALUES.map((item) => (
-                  <option
-                    key={item.value}
-                    value={String(item.value)}
-                  >
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
             {selected.kind === "led" && (
               <select
                 value={
@@ -1298,7 +941,6 @@ export function LabOverlay() {
                 </option>
               </select>
             )}
-
           </div>
         )}
 
@@ -1391,259 +1033,15 @@ export function LabOverlay() {
         </div>
       </aside>
 
-      {/* RIGHT PANEL: LCD output + Arduino editor */}
-      <aside
-        style={{
-          position: "absolute",
-          top: 85,
-          right: 16,
-          bottom: 16,
-          width: 340,
-          zIndex: 90,
-          overflowY: "auto",
-          padding: 14,
-          borderRadius: 18,
-          background: "rgba(8,15,28,.94)",
-          border: "1px solid rgba(255,255,255,.12)",
-          color: "white",
-          boxShadow: "0 20px 50px rgba(0,0,0,.35)",
-          display: "flex",
-          flexDirection: "column",
-          gap: 14,
-        }}
-      >
-        {/* LCD OUTPUT */}
-        <div>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: 1.5,
-              textTransform: "uppercase",
-              opacity: 0.55,
-            }}
-          >
-            LCD output
-          </div>
-          <div
-            style={{
-              marginTop: 8,
-              padding: "14px 16px",
-              borderRadius: 12,
-              background: sim.lcdPowered ? "#0b3d2e" : "#020617",
-              border: "1px solid rgba(52, 211, 153, 0.25)",
-              boxShadow: sim.lcdPowered
-                ? "inset 0 0 24px rgba(16, 185, 129, 0.15)"
-                : "none",
-              minHeight: 72,
-            }}
-          >
-            <pre
-              style={{
-                margin: 0,
-                fontFamily:
-                  "IBM Plex Mono, ui-monospace, monospace",
-                fontSize: 15,
-                letterSpacing: "0.14em",
-                lineHeight: 1.55,
-                color: sim.lcdPowered ? "#a7f3d0" : "#334155",
-                whiteSpace: "pre",
-                textShadow: sim.lcdPowered
-                  ? "0 0 8px rgba(52, 211, 153, 0.35)"
-                  : "none",
-              }}
-            >
-              {(() => {
-                const raw = (sim.lcdText || "").replace(/\r/g, "");
-                const lines = raw.split("\n");
-                const l1 = (lines[0] ?? "").padEnd(16, " ").slice(0, 16);
-                const l2 = (lines[1] ?? "").padEnd(16, " ").slice(0, 16);
-                return `${l1}\n${l2}`;
-              })()}
-            </pre>
-          </div>
-          <div
-            style={{
-              marginTop: 6,
-              fontSize: 11,
-              color: "#64748b",
-              lineHeight: 1.4,
-            }}
-          >
-            {sim.lcdPowered
-              ? "Live characters from the HD44780 driven by your sketch."
-              : "Power the supply and wire the LCD (auto-wired when you place MCU + LCD)."}
-          </div>
-        </div>
-
-        {/* OLED OUTPUT */}
-        <div>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: 1.5,
-              textTransform: "uppercase",
-              opacity: 0.55,
-            }}
-          >
-            OLED output
-          </div>
-          <div
-            style={{
-              marginTop: 8,
-              padding: "12px 14px",
-              borderRadius: 12,
-              background: sim.oledPowered ? "#020617" : "#010409",
-              border: "1px solid rgba(14, 165, 233, 0.3)",
-              boxShadow: sim.oledPowered
-                ? "inset 0 0 20px rgba(14, 165, 233, 0.12)"
-                : "none",
-              minHeight: 96,
-            }}
-          >
-            <pre
-              style={{
-                margin: 0,
-                fontFamily: "IBM Plex Mono, ui-monospace, monospace",
-                fontSize: 12,
-                letterSpacing: "0.06em",
-                lineHeight: 1.35,
-                color: sim.oledPowered ? "#7dd3fc" : "#1e293b",
-                whiteSpace: "pre",
-                textShadow: sim.oledPowered
-                  ? "0 0 6px rgba(56, 189, 248, 0.4)"
-                  : "none",
-              }}
-            >
-              {(() => {
-                const raw = (sim.oledText || "").replace(/\r/g, "");
-                const lines = raw.split("\n").slice(0, 8);
-                while (lines.length < 4) lines.push("");
-                return lines
-                  .map((l) => (l || " ").padEnd(21, " ").slice(0, 21))
-                  .join("\n");
-              })()}
-            </pre>
-          </div>
-          <div
-            style={{
-              marginTop: 6,
-              fontSize: 11,
-              color: "#64748b",
-              lineHeight: 1.4,
-            }}
-          >
-            {sim.oledPowered
-              ? "SSD1306 text buffer from display.print / println in your sketch."
-              : "Place OLED + MCU (auto-wires VCC/GND/SDA/SCL). Use Adafruit_SSD1306-style calls."}
-          </div>
-        </div>
-
-        {/* ARDUINO SKETCH EDITOR */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: 1.5,
-              textTransform: "uppercase",
-              opacity: 0.55,
-            }}
-          >
-            Arduino sketch
-          </div>
-          {(() => {
-            const mcu =
-              selected?.kind === "mcu"
-                ? selected
-                : parts.find((p) => p.kind === "mcu") ?? null;
-            if (!mcu) {
-              return (
-                <div
-                  style={{
-                    marginTop: 8,
-                    padding: 12,
-                    borderRadius: 10,
-                    background: "rgba(255,255,255,.04)",
-                    fontSize: 12,
-                    color: "#94a3b8",
-                    lineHeight: 1.5,
-                  }}
-                >
-                  Place a microcontroller on the board to edit its sketch here.
-                </div>
-              );
-            }
-            return (
-              <>
-                <div
-                  style={{
-                    marginTop: 6,
-                    marginBottom: 6,
-                    fontSize: 11,
-                    color: "#94a3b8",
-                  }}
-                >
-                  Editing:{" "}
-                  <strong style={{ color: "#e2e8f0" }}>
-                    {mcu.props.label ?? mcu.id}
-                  </strong>
-                  {!sim.mcuPowered && (
-                    <span style={{ color: "#f59e0b" }}> · not powered</span>
-                  )}
-                </div>
-                <textarea
-                  value={mcu.props.code ?? ""}
-                  onChange={(e) => {
-                    setMcuCode(mcu.id, e.target.value);
-                  }}
-                  spellCheck={false}
-                  style={{
-                    flex: 1,
-                    width: "100%",
-                    minHeight: 220,
-                    boxSizing: "border-box",
-                    padding: 12,
-                    borderRadius: 12,
-                    border: "1px solid rgba(255,255,255,.12)",
-                    background: "#0b1220",
-                    color: "#e2e8f0",
-                    fontFamily:
-                      "IBM Plex Mono, ui-monospace, monospace",
-                    fontSize: 12,
-                    lineHeight: 1.45,
-                    resize: "vertical",
-                    outline: "none",
-                  }}
-                />
-                <div
-                  style={{
-                    marginTop: 6,
-                    fontSize: 11,
-                    color: "#64748b",
-                    lineHeight: 1.4,
-                  }}
-                >
-                  Output of{" "}
-                  <code style={{ color: "#94a3b8" }}>lcd.print(...)</code>{" "}
-                  appears on the LCD above and on the 3D module.
-                </div>
-              </>
-            );
-          })()}
-        </div>
-      </aside>
-
       {/* INSTRUCTIONS */}
 
       <div
         style={{
           position: "absolute",
           bottom: 18,
-          right: 370,
+          right: 18,
           zIndex: 90,
-          maxWidth: 280,
+          maxWidth: 330,
           padding: 13,
           borderRadius: 14,
           background:
@@ -1656,8 +1054,8 @@ export function LabOverlay() {
         }}
       >
         <strong>
-          {pending.length
-            ? `Pins ${pending.length}/${pinOrder.length}: ${pending.join(", ")}`
+          {pending
+            ? `First connection: ${pending}`
             : tool === "wire"
             ? "Wire mode"
             : tool === "select"
@@ -1671,11 +1069,9 @@ export function LabOverlay() {
             color: "#94a3b8",
           }}
         >
-          {pending.length
-            ? `Next pin: ${pinOrder[pending.length] ?? "complete the placement"}.`
-            : pinOrder.length
-              ? `Pin order: ${pinOrder.join(" ??? ")}.`
-              : "Choose a component, then click the breadboard holes where its pins should connect."}
+          {pending
+            ? "Now click another breadboard hole to finish the connection."
+            : "Choose a component, then click the breadboard holes where its pins should connect."}
         </div>
       </div>
 
@@ -1686,7 +1082,7 @@ export function LabOverlay() {
           style={{
             position: "absolute",
             top: 85,
-            right: 370,
+            right: 18,
             zIndex: 95,
             padding: 14,
             borderRadius: 14,
@@ -1768,7 +1164,7 @@ export function LabOverlay() {
                   marginTop: 4,
                 }}
               >
-                ??? {warning}
+                • {warning}
               </div>
             )
           )}
